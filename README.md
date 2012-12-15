@@ -1,4 +1,4 @@
-Projectampersandnbsp
-====================
+Mobile App Challenge Backend
+============================
 
-This is the back end for our Mobile App server
+This is the backend for our Mobile Application.
