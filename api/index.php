@@ -25,90 +25,106 @@ function getEvent($id) {
   // This may be useful for debugging but not used in practice.
 }
 
+// Returns an object/array of event objects based on the user's location.
+//
+// Parameters:
+//   latitude:  The latitude of the user (float)
+//   longitude: The longitude of the user (float)
+//   type:      A filter for certain event types only (int\string?)
+//
+// Returns:
+//   {
+//    { event object }
+//    { event object }
+//    ...
+//   }
 function getEventsByLocation() {
   $request = Slim::getInstance()->request();
   $event = json_decode($request->getBody());
 
-//The following use of $event expects json_decode to return as follows:
-//[latitude=>"the latitude", longitude=>"the longitue", type=>"the type"]
-//Simple error checking for valid inputs
-  if ($event['longitude'] == NULL || $event['latitude'] == NULL){
-		echo '{"error":{"text":"invalid inputs for query"}}';
+  // Simple error checking for valid inputs
+  if (IsNullOrEmptyString($event['longitude']) || IsNullOrEmptyString($event['latitude']) {
+    echo '{"error":{"text":"invalid inputs for query"}}';
     die;
   }
 
-  //This is implementing a search range.  Will need to fine tune.
+  // This is implementing a search range.  Will need to fine tune.
+  // 1 degree of latitude/longitude is ~ 111.2 km or 69 miles.
   $latsma = $event['latitude'] - .5;
   $latbig = $event['latitude'] + .5;
   $lonsma = $event['longitude'] - .5;
-  $lonbig = $evnet['longitude'] + .5;
+  $lonbig = $event['longitude'] + .5;
 	$type = $event['type'];
 
-  //This is a long wany to create our query
-	if ($type == NULL){
-		$query = "select * from $table where longitude<$lonbig and longitude>$lonsma";
-		$query = $query . " and latitude<$latbig and latitude>$latsma";
-	}
-	else{
-		$query = "select * from $table where type=$type and longitude<$lonbig and";
-		$query = $query . " longitude>$lonsma and latitude<$latbig and latitude>$latsma";
+  // This is a long way to create our query
+  // Query bindings would help avoid SQL injection.
+  if (IsNullOrEmptyString($type) {
+    $query = "SELECT * "
+           . "FROM $table "
+           . "WHERE longitude BETWEEN $lonsma AND $lonbig "
+           . "AND latitude BETWEEN $latsma AND $latbig";
+  }
+  else {
+    $query = "SELECT * "
+           . "FROM $table "
+           . "WHERE type = :type "
+           . "AND longitude BETWEEN $lonsma AND $lonbig "
+           . "AND latitude BETWEEN $latsma AND $latbig";
   }
 
-	try {
-
-		$dbx = getConnection();
-		$dbx->preapre($query);
-		$dbx->execute();
-		while($row = $dbx->fetch()){
-			echo json_encode($row);
-			//returns multiple json_objects instead of one.
-			//need to create a name for our location objects if we wish
-			//to return an object of our objects
-    }
-    $dbx=Null;
+  try {
+    $dbx = getConnection();
+    $stmt = $dbx->prepare($query);
+    $stmt->bindParam("type", $type);
+    $stmt->execute();
+    // Will need testing, but should give multiple objects in one.
+    $events = $stmt->fetchAll(PDO::FETCH_OBJ);
+    $dbx = NULL;
+    echo '{"event": ' . json_encode($events) . '}';
   }
-  catch (PDOException $e){
-		echo '{"error":{"text":'. $e->getMessage() . '}}';
-    $dbx=Null;
+  catch (PDOException $e) {
+    echo '{"error":{"text":'. $e->getMessage() .'}}';
+    $dbx = NULL;
     die;
   }
 }
 
-
-
-//Assumes a json like above
+// Assumes a json like above
 function createEvent() {
   $request = Slim::getInstance()->request();
   $event = json_decode($request->getBody());
+
   // Add the event information into the SQL Database
-  $query = "insert into $table set (title, description, location, longitude, latitude, type, time)";
-	$query = $query . ' values (:title, :description, :location, :longitude, :latitude, :type, :time)';
+  $query = "INSERT INTO $table (title, description, location, longitude, latitude, type, time) "
+         . "VALUES (:title, :description, :location, :longitude, :latitude, :type, :time)";
 
-	//Error checking for valid inputs
-	if ($event['title'] == Null || $event['longitude'] == Null || $event['latitude'] == Null){
-		echo '{"error":{"text":"invalid inputs for create"}}';
+  // Error checking for valid inputs
+  if (IsNullOrEmptyString($event['title']) ||
+      IsNullOrEmptyString($event['longitude']) ||
+      IsNullOrEmptyString($event['latitude']) {
+    echo '{"error":{"text":"invalid inputs for event creation."}}';
     die;
-	}
-
+  }
 
   try {
-
     $dbx = getConnection();
-    $state = $dbx->preapre($query);
-		$state->bindParam("title", $event->title);
-		$state->bindParam("description", $event->description);
-		$state->bindParam("location", $event->location);
-		$state->bindParam("longitude", $event->longitude);
-		$state->bindParam("latitude", $event->latitude);
-		$state->bindParam("type", $event->type);
-		$state->bindParam("time", $event->time);
-		//return if succeeds
+    $state = $dbx->prepare($query);
+    $state->bindParam("title", $event->title);
+    $state->bindParam("description", $event->description);
+    $state->bindParam("location", $event->location);
+    $state->bindParam("longitude", $event->longitude);
+    $state->bindParam("latitude", $event->latitude);
+    $state->bindParam("type", $event->type);
+    $state->bindParam("time", $event->time);
+
+    // Returns an object with bool:true.
+    // Maybe return the new event itself?
     echo '{"bool":' . $state->execute() . '}';
-    $dbx=Null;
+    $dbx = NULL;
   }
-  catch (PDOException $e){
-		echo '{"error":{"text":'. $e->getMessage() . '}}';
-    $dbx=Null;
+  catch (PDOException $e) {
+    echo '{"error":{"text":'. $e->getMessage() .'}}';
+    $dbx = NULL;
     die;
   }
 }
@@ -116,11 +132,16 @@ function createEvent() {
 // Helper method for database connections.
 function getConnection() {
   // The database credentials are kept out of revision control.
-  include("/path_to_db_settibgs.php");
+  include("/path_to_db_settings.php");
   $dbh = new PDO("mysql:host=$db_host;dbname=$db_name", $db_user, $db_pass);
   $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
   unset ($db_user, $db_pass);
   return $dbh;
+}
+
+// Validation helper (String is present and neither empty nor only white space)
+function IsNullOrEmptyString($field) {
+  return (!isset($field) || trim($field) === '');
 }
 
 ?>
