@@ -61,20 +61,24 @@ function getEventsByLocation() {
   if (IsNullOrEmptyString($type) {
     $query = "SELECT * "
            . "FROM $table "
-           . "WHERE longitude BETWEEN $lonsma AND $lonbig "
-           . "AND latitude BETWEEN $latsma AND $latbig";
+           . "WHERE longitude BETWEEN :lonsma AND :lonbig "
+           . "AND latitude BETWEEN :latsma AND :latbig";
   }
   else {
     $query = "SELECT * "
            . "FROM $table "
            . "WHERE type = :type "
-           . "AND longitude BETWEEN $lonsma AND $lonbig "
-           . "AND latitude BETWEEN $latsma AND $latbig";
+           . "AND longitude BETWEEN :lonsma AND :lonbig "
+           . "AND latitude BETWEEN :latsma AND :latbig";
   }
 
   try {
     $dbx = getConnection();
     $stmt = $dbx->prepare($query);
+    $stmt->bindParam("lonsma", $lonsma);
+    $stmt->bindParam("lonbig", $lonbig);
+    $stmt->bindParam("latsma", $latsam);
+    $stmt->bindParam("latbig", $latbig);
     $stmt->bindParam("type", $type);
     $stmt->execute();
     // Will need testing, but should give multiple objects in one.
