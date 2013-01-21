@@ -12,7 +12,7 @@ $app = new \Slim\Slim();
 //#################
 //Select our DB table
 //#################
-$table = "table_name";
+$table = "table1";
 
 $app->get('/events/:id', 'getEvent');
 $app->get('/events/search/:query', 'getEventsByLocation');

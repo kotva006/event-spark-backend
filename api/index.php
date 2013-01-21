@@ -12,7 +12,7 @@ $app = new \Slim\Slim();
 //#################
 //Select our DB table
 //#################
-$table = "table1";
+$table = "table";
 
 $app->get('/events/:id', 'getEvent');
 $app->get('/events/search/:query', 'getEventsByLocation');
@@ -171,7 +171,7 @@ function createEvent() {
 // Helper method for database connections.
 function getConnection() {
   // The database credentials are kept out of revision control.
-  include("/var/storage/settings.php");
+  include("settings.php");
   $dbh = new PDO("mysql:host=$db_host;dbname=$db_name", $db_user, $db_pass);
   $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
   unset ($db_user, $db_pass);
