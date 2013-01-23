@@ -50,15 +50,15 @@ function getEventsByLocation() {
 
   // This is implementing a search range.  Will need to fine tune.
   // Changed to ~5 mile radius.
-  $latsma = $event['latitude'] - .074;
-  $latbig = $event['latitude'] + .074;
-  $lonsma = $event['longitude'] - .074;
-  $lonbig = $event['longitude'] + .074;
+  $locationRadius = .074;
+  $latsma = $event['latitude'] - $locationRadius;
+  $latbig = $event['latitude'] + $locationRadius;
+  $lonsma = $event['longitude'] - $locationRadius;
+  $lonbig = $event['longitude'] + $locationRadius;
   $type = $event['type'];
 
-  // This is a long way to create our query
-  // Query bindings would help avoid SQL injection.
-  if (IsNullOrEmptyString($type) ){
+  // Creation the SQL query string.
+  if (IsNullOrEmptyString($type)) {
     $query = "SELECT * "
            . "FROM $table "
            . "WHERE longitude BETWEEN :lonsma AND :lonbig "
@@ -84,10 +84,10 @@ function getEventsByLocation() {
     // Will need testing, but should give multiple objects in one.
     $events = $stmt->fetchAll(PDO::FETCH_OBJ);
     $dbx = NULL;
-    echo '{"event":' . json_encode($events) .'}';
+    echo '{"event":' . json_encode($events) . '}';
   }
   catch (PDOException $e) {
-    echo '{"text":"'. $e->getMessage() .'"}';
+    echo '{"text":"' . $e->getMessage() . '"}';
     $dbx = NULL;
     die;
   }
@@ -105,45 +105,20 @@ function createEvent() {
          . ":type, :startTime, :endTime, :date)";
 
   // Error checking for valid inputs
+  $time = $event['time'];
   if (IsNullOrEmptyString($event['title']) ||
       IsNullOrEmptyString($event['longitude']) ||
       IsNullOrEmptyString($event['latitude']) ||
-      IsNullOrEmptyString($event['type'])) {
+      IsNullOrEmptyString($event['type']) ||
+      IsNullOrEmptyString($time)) {
     echo '{"text":"invalid inputs for event creation."}';
     die;
   }
 
-  //Process the time
-  $starTime = "";
-  $endTime  = "";
-  $createDate = date("mdY");
-  $am_pm    = "";
-  $time = $event['time'];
+  // The API receives the starting time in milliseconds. This makes it easy
+  // to parse and transfer.
+  $time = date('YY-MM-DD HH:II:SS', $time);
 
-  //Convert 12 hours to military time
-  if(strlen($time) >6){
-    $startTime = substr($time, 0, -8);
-    $am_pm     = substr($time, 4, -6);
-    if($am_pm=1){
-      $am_pm = "";
-    }
-    else{$starTime + 1200;}
-    $endTime = substr($time, 5, -2);
-    $am_pm     = substr($time, 9);
-    if($am_pm=1){
-      $am_pm = "";
-    }
-    else{$endTime + 1200;}
-  }
-  else {
-    $endTime = substr($time, 0, -2);
-    $am_pm     = substr($time, 4, -6);
-    if($am_pm=1){
-      $am_pm = "";
-    }
-    else{$endTime + 1200;}
-  }
-  
   try {
     $dbx = getConnection();
     $state = $dbx->prepare($query);
@@ -162,7 +137,7 @@ function createEvent() {
     $dbx = NULL;
   }
   catch (PDOException $e) {
-    echo '{"text":"'. $e->getMessage() .'"}';
+    echo '{"text":"' . $e->getMessage() . '"}';
     $dbx = NULL;
     die;
   }
