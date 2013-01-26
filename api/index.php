@@ -9,10 +9,7 @@ require 'Slim/Slim.php';
 
 $app = new \Slim\Slim();
 
-//#################
-//Select our DB table
-//#################
-$table = "table";
+
 
 $app->get('/events/:id', 'getEvent');
 $app->get('/events/search/:query', 'getEventsByLocation');
@@ -26,11 +23,11 @@ function getEvent($id) {
 }
 
 // Returns an object/array of event objects based on the user's location.
+// Time is returned using the POSIX standard
 //
 // Parameters:
 //   latitude:  The latitude of the user (float)
 //   longitude: The longitude of the user (float)
-//   type:      A filter for certain event types only (int\string?)
 //
 // Returns:
 //   {
@@ -39,12 +36,12 @@ function getEvent($id) {
 //    ...
 //   }
 function getEventsByLocation() {
-  $request = Slim::getInstance()->request();
+  $request = \Slim\Slim::getInstance()->request();
   $event = json_decode($request->getBody());
 
   // Simple error checking for valid inputs
   if (IsNullOrEmptyString($event['longitude']) || IsNullOrEmptyString($event['latitude'])) {
-    echo '{"error":{"text":"invalid inputs for query"}}';
+    echo '{"text":"invalid inputs for query"}';
     die;
   }
 
@@ -55,22 +52,15 @@ function getEventsByLocation() {
   $latbig = $event['latitude'] + $locationRadius;
   $lonsma = $event['longitude'] - $locationRadius;
   $lonbig = $event['longitude'] + $locationRadius;
-  $type = $event['type'];
+  
 
   // Creation the SQL query string.
-  if (IsNullOrEmptyString($type)) {
-    $query = "SELECT * "
+  $query = "SELECT * "
            . "FROM $table "
            . "WHERE longitude BETWEEN :lonsma AND :lonbig "
            . "AND latitude BETWEEN :latsma AND :latbig";
-  }
-  else {
-    $query = "SELECT * "
-           . "FROM $table "
-           . "WHERE type = :type "
-           . "AND longitude BETWEEN :lonsma AND :lonbig "
-           . "AND latitude BETWEEN :latsma AND :latbig";
-  }
+  
+  
 
   try {
     $dbx = getConnection();
@@ -94,44 +84,36 @@ function getEventsByLocation() {
 }
 
 // Assumes a json like above
+// Recieves time based on based on POSIX time standard
 function createEvent() {
-  $request = Slim::getInstance()->request();
-  $event = json_decode($request->getBody());
+  $request = \Slim\Slim::getInstance()->request();
+  $event = json_decode($request->getBody(),  true);
 
   // Add the event information into the SQL Database
-  $query = "INSERT INTO $table (title, description, location, longitude, "
-         . "latitude, type, startTime, endTime, date) "
-         . "VALUES (:title, :description, :location, :longitude, :latitude, "
-         . ":type, :startTime, :endTime, :date)";
+  $query = "INSERT INTO events_2 (title, description, longitude, "
+         . "latitude, start_date, end_date) "
+         . "VALUES (:title, :description, :longitude, :latitude, "
+         . ":start_date, :end_date)";
 
   // Error checking for valid inputs
-  $time = $event['time'];
   if (IsNullOrEmptyString($event['title']) ||
       IsNullOrEmptyString($event['longitude']) ||
       IsNullOrEmptyString($event['latitude']) ||
-      IsNullOrEmptyString($event['type']) ||
-      IsNullOrEmptyString($time)) {
+      IsNullOrEmptyString($event['end_date'])) {
     echo '{"text":"invalid inputs for event creation."}';
     die;
   }
 
-  // The API receives the starting time in milliseconds. This makes it easy
-  // to parse and transfer.
-  $time = date('YY-MM-DD HH:II:SS', $time);
-
   try {
     $dbx = getConnection();
     $state = $dbx->prepare($query);
-    $state->bindParam("title", $event->title);
-    $state->bindParam("description", $event->description);
-    $state->bindParam("location", $event->location);
-    $state->bindParam("longitude", $event->longitude);
-    $state->bindParam("latitude", $event->latitude);
-    $state->bindParam("startTime", $startTime);
-    $state->bindParam("endTime", $endTime);
-    $state->bindParam("date", $date);
-    $state->bindParam("type", $event->type);
-
+    $state->bindParam("title", $event['title']);
+    $state->bindParam("description", $event['description']);
+    //$state->bindParam("location", $event['location']);
+    $state->bindParam("longitude", $event['longitude']);
+    $state->bindParam("latitude", $event['latitude']);
+    $state->bindParam("start_date", $event['start_date']);
+    $state->bindParam("end_date", $event['end_date']);
     // Returns an object with bool:true.
     echo '{"bool":"' . $state->execute() . '"}';
     $dbx = NULL;
@@ -144,9 +126,10 @@ function createEvent() {
 }
 
 // Helper method for database connections.
+//Also include variable $table in settings.php
 function getConnection() {
   // The database credentials are kept out of revision control.
-  include("settings.php");
+  include("/home/rkotval/settings/settings.php");
   $dbh = new PDO("mysql:host=$db_host;dbname=$db_name", $db_user, $db_pass);
   $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
   unset ($db_user, $db_pass);
