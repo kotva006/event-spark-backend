@@ -12,15 +12,39 @@ require 'Slim/Slim.php';
 
 $app = new \Slim\Slim();
 
-$app->get('/events/:id', 'getEvent');
+$app->get('/events/:id', function($id) {
+  // Makes a call to getEvent; this allows it to be used both as an internal
+  // method and as a public api url.
+  echo getEvent($id);
+});
 $app->get('/events/search/', 'getEventsByLocation');
 $app->post('/events', 'createEvent');
 
 $app->run();
 
+// Retrieves a particular event by ID.
 function getEvent($id) {
-  // Get information about a particular event. Necessary?
-  // This may be useful for debugging but not used in practice.
+  try {
+    $dbx = getConnection();
+
+    // Creation the SQL query string.
+    $query = "SELECT * FROM " . $GLOBALS['table'] . " WHERE id=:id";
+
+    $stmt = $dbx->prepare($query);
+    $stmt->bindParam("id", $id);
+
+    $stmt->execute();
+    $event = $stmt->fetchObject();
+    $dbx = NULL;
+    if ($event == false)
+      return '{"error": "No event found for given ID."}';
+    return '{"event":' . json_encode($event) . '}';
+  }
+  catch (PDOException $e) {
+    return '{"error": "' . $e->getMessage() . '"}';
+    $dbx = NULL;
+    die;
+  }
 }
 
 // Returns an object/array of event objects based on the user's location.
@@ -32,9 +56,11 @@ function getEvent($id) {
 //
 // Returns:
 //   {
-//     { event object }
-//     { event object }
-//     ...
+//     "events": [
+//       { event object }
+//       { event object }
+//       ...
+//     ]
 //   }
 function getEventsByLocation() {
   $request = \Slim\Slim::getInstance()->request();
@@ -70,11 +96,8 @@ function getEventsByLocation() {
     $stmt->bindParam("lonbig", $lonbig);
     $stmt->bindParam("latsmall", $latsmall);
     $stmt->bindParam("latbig", $latbig);
-    //$stmt->bindParam("type", $type);
 
     $stmt->execute();
-
-    // Will need testing, but should give multiple objects in one.
     $events = $stmt->fetchAll(PDO::FETCH_OBJ);
 
     $dbx = NULL;
@@ -87,19 +110,41 @@ function getEventsByLocation() {
   }
 }
 
-// Assumes a json like above
-// Recieves time based on based on POSIX time standard
+// Adds an event to the database.
+//
+// POST Parameters:
+//   title: The title of the event.
+//   description: A longer description of the event.
+//   latitude: The latitude of the event location.
+//   longitude: The longitude of the event location.
+//   start_date: POSIX date when event begins.
+//   end_date: POSIX date when event ends.
+//
+// Returns:
+// (Success)
+//   {"event": { event object } }
+//
+// (Failure)
+//   {"error": <message describing error>}
 function createEvent() {
   $request = \Slim\Slim::getInstance()->request();
-  $event = json_decode($request->getBody(),  true);
 
-  // Error checking for valid inputs
-  if (isNullOrEmptyString($event['title']) ||
-      isNullOrEmptyString($event['longitude']) ||
-      isNullOrEmptyString($event['latitude']) ||
-      isNullOrEmptyString($event['end_date'])) {
-    echo '{"text": "invalid inputs for event creation."}';
-    die;
+  $title = $request->post('title');
+  $description = $request->post('description');
+  $latitude = $request->post('latitude');
+  $longitude = $request->post('longitude');
+  $start = $request->post('start_date');
+  $end = $request->post('end_date');
+
+  // Validate inputs
+  if (isNullOrEmptyString($title)) {
+    echo '{"error": "No title given for the new event."}'; die;
+  }
+  if (isNullOrEmptyString($latitude) || isNullOrEmptyString($longitude)) {
+    echo '{"error": "Both a latitude and longitude parameter are required."}'; die;
+  }
+  if (isNullOrEmptyString($start) || isNullOrEmptyString($end)) {
+    echo '{"error": "Both a start and end date in seconds are required."}'; die;
   }
 
   try {
@@ -110,19 +155,19 @@ function createEvent() {
            . "VALUES (:title, :description, :longitude, :latitude, :start_date, :end_date)";
 
     $state = $dbx->prepare($query);
-    $state->bindParam("title", $event['title']);
-    $state->bindParam("description", $event['description']);
-    //$state->bindParam("location", $event['location']);
-    $state->bindParam("longitude", $event['longitude']);
-    $state->bindParam("latitude", $event['latitude']);
-    $state->bindParam("start_date", $event['start_date']);
-    $state->bindParam("end_date", $event['end_date']);
-    // Returns an object with bool:true.
-    echo '{"bool": "' . $state->execute() . '"}';
+    $state->bindParam("title", $title);
+    $state->bindParam("description", $description);
+    $state->bindParam("longitude", $longitude);
+    $state->bindParam("latitude", $latitude);
+    $state->bindParam("start_date", $start);
+    $state->bindParam("end_date", $end);
+    $state->execute();
+    $id = $dbx->lastInsertId();
+    echo getEvent($id);
     $dbx = NULL;
   }
   catch (PDOException $e) {
-    echo '{"text": "' . $e->getMessage() . '"}';
+    echo '{"error": "' . $e->getMessage() . '"}';
     $dbx = NULL;
     die;
   }
