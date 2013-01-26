@@ -36,7 +36,7 @@ function getEvent($id) {
 //    ...
 //   }
 function getEventsByLocation() {
-  $request = Slim::getInstance()->request();
+  $request = \Slim\Slim::getInstance()->request();
   $event = json_decode($request->getBody());
 
   // Simple error checking for valid inputs
@@ -86,14 +86,14 @@ function getEventsByLocation() {
 // Assumes a json like above
 // Recieves time based on based on POSIX time standard
 function createEvent() {
-  $request = Slim::getInstance()->request();
-  $event = json_decode($request->getBody());
+  $request = \Slim\Slim::getInstance()->request();
+  $event = json_decode($request->getBody(),  true);
 
   // Add the event information into the SQL Database
-  $query = "INSERT INTO $table (title, description, longitude, "
+  $query = "INSERT INTO events_2 (title, description, longitude, "
          . "latitude, start_date, end_date) "
          . "VALUES (:title, :description, :longitude, :latitude, "
-         . ":start_date, :end_date,)";
+         . ":start_date, :end_date)";
 
   // Error checking for valid inputs
   if (IsNullOrEmptyString($event['title']) ||
@@ -107,14 +107,13 @@ function createEvent() {
   try {
     $dbx = getConnection();
     $state = $dbx->prepare($query);
-    $state->bindParam("title", $event->title);
-    $state->bindParam("description", $event->description);
-    $state->bindParam("location", $event->location);
-    $state->bindParam("longitude", $event->longitude);
-    $state->bindParam("latitude", $event->latitude);
-    $state->bindParam("start_date", $event->start_date);
-    $state->bindParam("end_date", $event->end_date);
-
+    $state->bindParam("title", $event['title']);
+    $state->bindParam("description", $event['description']);
+    //$state->bindParam("location", $event['location']);
+    $state->bindParam("longitude", $event['longitude']);
+    $state->bindParam("latitude", $event['latitude']);
+    $state->bindParam("start_date", $event['start_date']);
+    $state->bindParam("end_date", $event['end_date']);
     // Returns an object with bool:true.
     echo '{"bool":"' . $state->execute() . '"}';
     $dbx = NULL;
@@ -130,7 +129,7 @@ function createEvent() {
 //Also include variable $table in settings.php
 function getConnection() {
   // The database credentials are kept out of revision control.
-  include("settings.php");
+  include("/home/rkotval/settings/settings.php");
   $dbh = new PDO("mysql:host=$db_host;dbname=$db_name", $db_user, $db_pass);
   $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
   unset ($db_user, $db_pass);
