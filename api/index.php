@@ -19,6 +19,8 @@ $app->get('/events/:id', function($id) {
 });
 $app->get('/events/search/', 'getEventsByLocation');
 $app->post('/events', 'createEvent');
+$app->post('/events/attend/', 'attendEvent');
+$app->get('/evetns/getAttend/', 'getAttending');
 
 $app->run();
 
@@ -87,7 +89,7 @@ function getEventsByLocation() {
 
     // Creation the SQL query string.
     $query = "SELECT * "
-           . "FROM " . $GLOBALS['table'] . " "
+           . "FROM " . $GLOBALS['table1'] . " "
            . "WHERE longitude BETWEEN :lonsmall AND :lonbig "
            . "AND latitude BETWEEN :latsmall AND :latbig";
 
@@ -151,8 +153,10 @@ function createEvent() {
     $dbx = getConnection();
 
     // Add the event information into the SQL Database
-    $query = "INSERT INTO " . $GLOBALS['table'] . " (title, description, longitude, latitude, start_date, end_date) "
+    $query = "INSERT INTO " . $GLOBALS['table1'] . " (title, description, longitude, latitude, start_date, end_date) "
            . "VALUES (:title, :description, :longitude, :latitude, :start_date, :end_date)";
+
+    $query2 ="INSERT INTO " . $GLOBALS['table2'] . " (id, attending) VALUES (:id, :attending)";
 
     $state = $dbx->prepare($query);
     $state->bindParam("title", $title);
@@ -165,11 +169,67 @@ function createEvent() {
     $id = $dbx->lastInsertId();
     echo getEvent($id);
     $dbx = NULL;
+    $state = $dbx->prepare($query2);
+    $state->bindParam("id", $id);
+    $state->bindParam("attending", "0");
+    $state->execute();
+    $dbx = NULL;
   }
   catch (PDOException $e) {
     echo '{"error": "' . $e->getMessage() . '"}';
     $dbx = NULL;
     die;
+  }
+}
+
+function attendEvent() {
+  $request = \Slim\Slim::getInstance()->request();
+  $id = $request->post('id');
+
+  if (isNullOrEmptyString($id)) {
+    echo '{"error": "An ID number is required"}';
+  }
+
+  $query = "UPDATE" . $GLOBALS['table2'] . "SET attending=attending+1"
+           . "WHERE id=:id";
+
+  try {
+    $dbx = getConnection();
+    $state = $dbx->prepare($query);
+    $state->bindParam("id", $id);
+    $state->execute();
+    echo '{"text":"success"}';
+    $dbx = NULL;
+  }
+  catch (PDOException $e) {
+    echo '{"error": "' . $e->getMessage() . '"}';
+    $dbx = NULL;
+  }
+
+}
+
+function getAttending() {
+  $request = \Slim\Slim::getInstance()->request();
+  $id = $request->post('id');
+
+  if (isNullOrEmptyString($id)) {
+    echo '{"error": "An ID number is required"}';
+  }
+  $query = "SELECT attending FROM". $GLOBALS['table2']
+           . "WHERE id=:id";
+  
+  try {
+    $dbx = getConnection();
+    $state = $dbx->prepare($query);
+    $state->bindParam("id", $id);
+    $state->execute();
+    $attending = $state->fetch(PDO::FETCH_OBJ);
+
+    echo '{"attending": "' . $attending->attending . '"}';
+    $dbx = NULL;
+  }
+  catch (PDOException $e) {
+    echo '{"error": "' . $e->getMessage() . '"}';
   }
 }
 
@@ -180,7 +240,8 @@ function getConnection() {
   include("$_SERVER[DOCUMENT_ROOT]/../settings.php");
 
   // Keep the table variable available globally.
-  $GLOBALS["table"] = $table;
+  $GLOBALS["table1"] = $table;
+  $GLOBALS["table2"] = $table2;
 
   $dbh = new PDO("mysql:host=$db_host;dbname=$db_name", $db_user, $db_pass);
   $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
