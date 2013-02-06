@@ -20,7 +20,7 @@ $app->get('/events/:id', function($id) {
 $app->get('/events/search/', 'getEventsByLocation');
 $app->post('/events', 'createEvent');
 $app->post('/events/attend/', 'attendEvent');
-$app->get('/evetns/getAttend/', 'getAttending');
+$app->get('/events/getAttend/', 'getAttending');
 
 $app->run();
 
@@ -89,7 +89,7 @@ function getEventsByLocation() {
 
     // Creation the SQL query string.
     $query = "SELECT * "
-           . "FROM " . $GLOBALS['table1'] . " "
+           . "FROM " . $GLOBALS['table'] . " "
            . "WHERE longitude BETWEEN :lonsmall AND :lonbig "
            . "AND latitude BETWEEN :latsmall AND :latbig";
 
@@ -117,6 +117,13 @@ function getEventsByLocation() {
 // POST Parameters:
 //   title: The title of the event.
 //   description: A longer description of the event.
+//   type: An integer constant defining the type of event.
+//     1: Academics
+//     2: Athletics
+//     3: Entertainment
+//     4: Promotions
+//     5: Social
+//     0: Other
 //   latitude: The latitude of the event location.
 //   longitude: The longitude of the event location.
 //   start_date: POSIX date when event begins.
@@ -138,10 +145,14 @@ function createEvent() {
   $longitude = $request->post('longitude');
   $start = $request->post('start_date');
   $end = $request->post('end_date');
+  $attending = 1; // TODO: Can we leave this blank and let MySQL default it?
 
   // Validate inputs
   if (isNullOrEmptyString($title)) {
     echo '{"error": "No title given for the new event."}'; die;
+  }
+  if (isNullOrEmptyString($type)) {
+    echo '{"error": "Type must be an integer constant."}'; die;
   }
   if (isNullOrEmptyString($latitude) || isNullOrEmptyString($longitude)) {
     echo '{"error": "Both a latitude and longitude parameter are required."}'; die;
@@ -154,7 +165,7 @@ function createEvent() {
     $dbx = getConnection();
 
     // Add the event information into the SQL Database
-    $query = "INSERT INTO " . $GLOBALS['table1'] . " (title, description, longitude, " 
+    $query = "INSERT INTO " . $GLOBALS['table'] . " (title, description, longitude, "
            . "latitude, start_date, end_date, type, attending) "
            . "VALUES (:title, :description, :longitude, :latitude, :start_date, "
            . ":end_date, :type, :attending)";
@@ -168,7 +179,7 @@ function createEvent() {
     $state->bindParam("start_date", $start);
     $state->bindParam("end_date", $end);
     $state->bindParam("type", $type);
-    $state->bindParam("attending", "1");
+    $state->bindParam("attending", $attending);
     $state->execute();
     $id = $dbx->lastInsertId();
     echo getEvent($id);
@@ -189,8 +200,8 @@ function attendEvent() {
     echo '{"error": "An ID number is required"}';
   }
 
-  $query = "UPDATE" . $GLOBALS['table1'] . "SET attending=attending+1"
-           . "WHERE id=:id";
+  $query = "UPDATE " . $GLOBALS['table'] . " SET attending = attending + 1 "
+         . "WHERE id=:id";
 
   try {
     $dbx = getConnection();
@@ -213,9 +224,8 @@ function getAttending() {
   if (isNullOrEmptyString($id)) {
     echo '{"error": "An ID number is required"}';
   }
-  $query = "SELECT attending FROM". $GLOBALS['table1']
-           . "WHERE id=:id";
-  
+  $query = "SELECT attending FROM " . $GLOBALS['table'] . " WHERE id=:id";
+
   try {
     $dbx = getConnection();
     $state = $dbx->prepare($query);
@@ -238,7 +248,7 @@ function getConnection() {
   include("$_SERVER[DOCUMENT_ROOT]/../settings.php");
 
   // Keep the table variable available globally.
-  $GLOBALS["table1"] = $table;
+  $GLOBALS["table"] = $table;
 
   $dbh = new PDO("mysql:host=$db_host;dbname=$db_name", $db_user, $db_pass);
   $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
