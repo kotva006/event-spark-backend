@@ -1,0 +1,13 @@
+# This file configures the URL rewriting to allow the "index.php"
+# to not be needed in the URL.
+
+RewriteEngine On
+
+# Some hosts may require you to use the `RewriteBase` directive.
+# If you need to use the `RewriteBase` directive, it should be the
+# absolute physical path to the directory that contains this htaccess file.
+
+RewriteBase /api/
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.php [QSA,L]
