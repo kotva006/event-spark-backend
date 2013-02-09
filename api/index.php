@@ -224,7 +224,7 @@ function getAttending() {
   if (isNullOrEmptyString($id)) {
     echo '{"error": "An ID number is required"}';
   }
-  $id = 1;
+  
   try {
     $dbx = getConnection();
     $query = "SELECT attending FROM " . $GLOBALS['table'] . " WHERE id=:id";
