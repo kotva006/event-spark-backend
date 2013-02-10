@@ -182,7 +182,17 @@ function createEvent() {
     $state->bindParam("attending", $attending);
     $state->execute();
     $id = $dbx->lastInsertId();
-    echo getEvent($id);
+    //echo getEvent($id);
+    echo '{"event": { "id":"'         .   $id       . '",'
+                  .   '"title":"'     .   $title    . '",'
+                  .   '"description":"' . $description . '",'
+                  .   '"longitude":"' .   $longitude .   '",'
+                  .   '"latitude":"'  .   $latitude  .   '",'
+                  .   '"start_date":"'.   $start     .   '",'
+                  .   '"end_date":"'  .   $end       .   '",'
+                  .   '"type":"'      .   $type      .   '",'
+                  .   '"attending":'  .   $attending .   '",';
+                  
     $dbx = NULL;
   }
   catch (PDOException $e) {
