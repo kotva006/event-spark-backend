@@ -208,6 +208,7 @@ function attendEvent() {
     $state = $dbx->prepare($query);
     $state->bindParam("id", $id);
     $state->execute();
+    getAttend($id);
     echo '{"text":"success"}';
     $dbx = NULL;
   }
