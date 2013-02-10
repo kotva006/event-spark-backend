@@ -182,7 +182,17 @@ function createEvent() {
     $state->bindParam("attending", $attending);
     $state->execute();
     $id = $dbx->lastInsertId();
-    echo getEvent($id);
+    //echo getEvent($id);
+    echo '{"event": { "id":"'         .   $id       . '",'
+                  .   '"title":"'     .   $title    . '",'
+                  .   '"description":"' . $description . '",'
+                  .   '"longitude":"' .   $longitude .   '",'
+                  .   '"latitude":"'  .   $latitude  .   '",'
+                  .   '"start_date":"'.   $start     .   '",'
+                  .   '"end_date":"'  .   $end       .   '",'
+                  .   '"type":"'      .   $type      .   '",'
+                  .   '"attending":'  .   $attending .   '",';
+                  
     $dbx = NULL;
   }
   catch (PDOException $e) {
@@ -200,15 +210,14 @@ function attendEvent() {
     echo '{"error": "An ID number is required"}';
   }
 
-  $query = "UPDATE " . $GLOBALS['table'] . " SET attending = attending + 1 "
-         . "WHERE id=:id";
-
   try {
     $dbx = getConnection();
+
+    $query = "UPDATE " . $GLOBALS['table'] . " SET attending = attending + 1 "
+         . "WHERE id=:id";
     $state = $dbx->prepare($query);
     $state->bindParam("id", $id);
     $state->execute();
-    getAttend($id);
     echo '{"text":"success"}';
     $dbx = NULL;
   }
@@ -225,16 +234,16 @@ function getAttending() {
   if (isNullOrEmptyString($id)) {
     echo '{"error": "An ID number is required"}';
   }
-  $query = "SELECT attending FROM " . $GLOBALS['table'] . " WHERE id=:id";
-
+  
   try {
     $dbx = getConnection();
+    $query = "SELECT attending FROM " . $GLOBALS['table'] . " WHERE id=:id";
     $state = $dbx->prepare($query);
     $state->bindParam("id", $id);
     $state->execute();
     $attending = $state->fetch(PDO::FETCH_OBJ);
 
-    echo '{"attending": "' . $attending->attending . '"}';
+    echo json_encode($attending);
     $dbx = NULL;
   }
   catch (PDOException $e) {
