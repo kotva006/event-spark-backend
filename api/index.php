@@ -30,8 +30,11 @@ function getEvent($id) {
   try {
     $dbx = getConnection();
 
+    $publicMembers = '';
+
     // Creation the SQL query string.
-    $query = "SELECT * FROM " . $GLOBALS['table'] . " WHERE id=:id";
+    $query = "SELECT id, title, description, longitude, latitude, start_date, end_date, type, attending "
+           . "FROM " . $GLOBALS['table'] . " WHERE id=:id";
 
     $stmt = $dbx->prepare($query);
     $stmt->bindParam("id", $id);
@@ -89,11 +92,10 @@ function getEventsByLocation() {
     $dbx = getConnection();
 
     // Creation the SQL query string.
-    $query = "SELECT * "
+    $query = "SELECT id, title, description, longitude, latitude, start_date, end_date, type, attending "
            . "FROM " . $GLOBALS['table'] . " "
            . "WHERE longitude BETWEEN :lonsmall AND :lonbig "
            . "AND latitude BETWEEN :latsmall AND :latbig";
-
     $stmt = $dbx->prepare($query);
     $stmt->bindParam("lonsmall", $lonsmall);
     $stmt->bindParam("lonbig", $lonbig);
@@ -146,7 +148,9 @@ function createEvent() {
   $longitude = $request->post('longitude');
   $start = $request->post('start_date');
   $end = $request->post('end_date');
-  $attending = 1; // TODO: Can we leave this blank and let MySQL default it?
+
+  // Determine the request IP for use in spam prevention (TODO: Implement protection)
+  $ip = $request->getIp();
 
   // Validate inputs
   if (isNullOrEmptyString($title)) {
@@ -167,10 +171,9 @@ function createEvent() {
 
     // Add the event information into the SQL Database
     $query = "INSERT INTO " . $GLOBALS['table'] . " (title, description, longitude, "
-           . "latitude, start_date, end_date, type, attending) "
+           . "latitude, start_date, end_date, type, ip) "
            . "VALUES (:title, :description, :longitude, :latitude, :start_date, "
-           . ":end_date, :type, :attending)";
-
+           . ":end_date, :type, INET_ATON(:ip))";
 
     $state = $dbx->prepare($query);
     $state->bindParam("title", $title);
@@ -180,20 +183,23 @@ function createEvent() {
     $state->bindParam("start_date", $start);
     $state->bindParam("end_date", $end);
     $state->bindParam("type", $type);
-    $state->bindParam("attending", $attending);
+    $state->bindParam("ip", $ip);
     $state->execute();
     $id = $dbx->lastInsertId();
-    //echo getEvent($id);
-    echo '{"event": { "id":"'         .   $id       . '",'
-                  .   '"title":"'     .   $title    . '",'
-                  .   '"description":"' . $description . '",'
-                  .   '"longitude":"' .   $longitude .   '",'
-                  .   '"latitude":"'  .   $latitude  .   '",'
-                  .   '"start_date":"'.   $start     .   '",'
-                  .   '"end_date":"'  .   $end       .   '",'
-                  .   '"type":"'      .   $type      .   '",'
-                  .   '"attending":"'  .   $attending .   '"}}';
-                  
+    echo getEvent($id);
+
+    // Below probably has performance benefit but since our table is still changing
+    // this can wait (we would need to keep updating this if we add more public
+    // members, etc.)
+    // echo '{"event": { "id":"'         .   $id       . '",'
+    //               .   '"title":"'     .   $title    . '",'
+    //               .   '"description":"' . $description . '",'
+    //               .   '"longitude":"' .   $longitude .   '",'
+    //               .   '"latitude":"'  .   $latitude  .   '",'
+    //               .   '"start_date":"'.   $start     .   '",'
+    //               .   '"end_date":"'  .   $end       .   '",'
+    //               .   '"type":"'      .   $type      .   '",'
+    //               .   '"attending":"'  .   $attending .   '"}}';
     $dbx = NULL;
   }
   catch (PDOException $e) {
@@ -215,7 +221,7 @@ function attendEvent() {
     $dbx = getConnection();
 
     $query = "UPDATE " . $GLOBALS['table'] . " SET attending = attending + 1 "
-         . "WHERE id=:id";
+           . "WHERE id=:id";
     $state = $dbx->prepare($query);
     $state->bindParam("id", $id);
     $state->execute();
@@ -235,7 +241,7 @@ function getAttending() {
   if (isNullOrEmptyString($id)) {
     echo '{"error": "An ID number is required"}';
   }
-  
+
   try {
     $dbx = getConnection();
     $query = "SELECT attending FROM " . $GLOBALS['table'] . " WHERE id=:id";
@@ -258,8 +264,7 @@ function reportEvent() {
 
   try {
     $dbx = getConnection();
-    $query = "UPDATE " . $GLOBALS['table'] 
-             . " SET report=report+1 WHERE id=:id";
+    $query = "UPDATE " . $GLOBALS['table'] . " SET report=report+1 WHERE id=:id";
     $state = $dbx->prepare($query);
     $state->bindParam('id', $id);
     $state->execute();
@@ -278,8 +283,9 @@ function getConnection() {
   // The database credentials are kept out of revision control.
   include("$_SERVER[DOCUMENT_ROOT]/../settings.php");
 
-  // Keep the table variable available globally.
+  // Keep the table and salt variables available globally.
   $GLOBALS["table"] = $table;
+  $GLOBALS["salt"] = $salt;
 
   $dbh = new PDO("mysql:host=$db_host;dbname=$db_name", $db_user, $db_pass);
   $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
