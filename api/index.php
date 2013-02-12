@@ -21,7 +21,7 @@ $app->get('/events/search/', 'getEventsByLocation');
 $app->post('/events', 'createEvent');
 $app->post('/events/attend/', 'attendEvent');
 $app->get('/events/getAttend/', 'getAttending');
-$app->post('events/report/', 'report');
+$app->post('/events/report/', 'reportEvent');
 
 $app->run();
 
@@ -192,7 +192,7 @@ function createEvent() {
                   .   '"start_date":"'.   $start     .   '",'
                   .   '"end_date":"'  .   $end       .   '",'
                   .   '"type":"'      .   $type      .   '",'
-                  .   '"attending":'  .   $attending .   '",';
+                  .   '"attending":"'  .   $attending .   '"}}';
                   
     $dbx = NULL;
   }
@@ -238,7 +238,7 @@ function getAttending() {
   
   try {
     $dbx = getConnection();
-    $query = "SELECT attending FROM " . $GLOBALS['table'] . "WHERE id=:id";
+    $query = "SELECT attending FROM " . $GLOBALS['table'] . " WHERE id=:id";
     $state = $dbx->prepare($query);
     $state->bindParam("id", $id);
     $state->execute();
@@ -252,14 +252,14 @@ function getAttending() {
   }
 }
 
-function report() {
+function reportEvent() {
   $request = \Slim\Slim::getInstance()->request();
   $id = $request->post('id');
 
   try {
     $dbx = getConnection();
     $query = "UPDATE " . $GLOBALS['table'] 
-             . "SET report = report + 1 WHERE id=:id";
+             . " SET report=report+1 WHERE id=:id";
     $state = $dbx->prepare($query);
     $state->bindParam('id', $id);
     $state->execute();
