@@ -30,8 +30,6 @@ function getEvent($id) {
   try {
     $dbx = getConnection();
 
-    $publicMembers = '';
-
     // Creation the SQL query string.
     $query = "SELECT id, title, description, longitude, latitude, start_date, end_date, type, attending "
            . "FROM " . $GLOBALS['table'] . " WHERE id=:id";
@@ -171,9 +169,9 @@ function createEvent() {
 
     // Add the event information into the SQL Database
     $query = "INSERT INTO " . $GLOBALS['table'] . " (title, description, longitude, "
-           . "latitude, start_date, end_date, type, ip) "
+           . "latitude, start_date, end_date, type, ip, owner_id) "
            . "VALUES (:title, :description, :longitude, :latitude, :start_date, "
-           . ":end_date, :type, INET_ATON(:ip))";
+           . ":end_date, :type, INET_ATON(:ip), UUID_SHORT())";
 
     $state = $dbx->prepare($query);
     $state->bindParam("title", $title);
