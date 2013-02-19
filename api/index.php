@@ -167,11 +167,14 @@ function createEvent() {
   try {
     $dbx = getConnection();
 
+    // Generate a unique owner_id for this new event.
+    $owner_id = sha1(uniqid('', true) . $GLOBALS["salt"]);
+
     // Add the event information into the SQL Database
     $query = "INSERT INTO " . $GLOBALS['table'] . " (title, description, longitude, "
            . "latitude, start_date, end_date, type, ip, owner_id) "
            . "VALUES (:title, :description, :longitude, :latitude, :start_date, "
-           . ":end_date, :type, INET_ATON(:ip), UUID_SHORT())";
+           . ":end_date, :type, INET_ATON(:ip), :owner_id)";
 
     $state = $dbx->prepare($query);
     $state->bindParam("title", $title);
@@ -182,22 +185,21 @@ function createEvent() {
     $state->bindParam("end_date", $end);
     $state->bindParam("type", $type);
     $state->bindParam("ip", $ip);
+    $state->bindParam("owner_id", $owner_id);
     $state->execute();
     $id = $dbx->lastInsertId();
-    echo getEvent($id);
+    //echo getEvent($id);
 
-    // Below probably has performance benefit but since our table is still changing
-    // this can wait (we would need to keep updating this if we add more public
-    // members, etc.)
-    // echo '{"event": { "id":"'         .   $id       . '",'
-    //               .   '"title":"'     .   $title    . '",'
-    //               .   '"description":"' . $description . '",'
-    //               .   '"longitude":"' .   $longitude .   '",'
-    //               .   '"latitude":"'  .   $latitude  .   '",'
-    //               .   '"start_date":"'.   $start     .   '",'
-    //               .   '"end_date":"'  .   $end       .   '",'
-    //               .   '"type":"'      .   $type      .   '",'
-    //               .   '"attending":"'  .   $attending .   '"}}';
+    echo '{"owner_id": "'              . $owner_id    . '",'
+         .'"event": {"id":"'           . $id          . '",'
+                  .  '"title":"'       . $title       . '",'
+                  .  '"description":"' . $description . '",'
+                  .  '"longitude":"'   . $longitude   . '",'
+                  .  '"latitude":"'    . $latitude    . '",'
+                  .  '"start_date":"'  . $start       . '",'
+                  .  '"end_date":"'    . $end         . '",'
+                  .  '"type":"'        . $type        . '",'
+                  .  '"attending":"1"}}';
     $dbx = NULL;
   }
   catch (PDOException $e) {
