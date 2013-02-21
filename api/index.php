@@ -146,6 +146,7 @@ function createEvent() {
   $longitude = $request->post('longitude');
   $start = $request->post('start_date');
   $end = $request->post('end_date');
+  $user_id = $request->post('user_id');
 
   // Determine the request IP for use in spam prevention (TODO: Implement protection)
   $ip = $request->getIp();
@@ -163,18 +164,21 @@ function createEvent() {
   if (isNullOrEmptyString($start) || isNullOrEmptyString($end)) {
     echo '{"error": "Both a start and end date in seconds are required."}'; die;
   }
+  if (isNullOrEmptyString($user_id)) {
+    echo '{"error": "A user_id must be provided to give event ownership."}'; die;
+  }
 
   try {
     $dbx = getConnection();
 
-    // Generate a unique owner_id for this new event.
-    $owner_id = sha1(uniqid('', true) . $GLOBALS["salt"]);
+    // Generate a unique secret_id for this new event.
+    $secret_id = sha1(uniqid('', true) . $GLOBALS["salt"]);
 
     // Add the event information into the SQL Database
     $query = "INSERT INTO " . $GLOBALS['table'] . " (title, description, longitude, "
-           . "latitude, start_date, end_date, type, ip, owner_id) "
+           . "latitude, start_date, end_date, type, ip, secret_id, user_id) "
            . "VALUES (:title, :description, :longitude, :latitude, :start_date, "
-           . ":end_date, :type, INET_ATON(:ip), :owner_id)";
+           . ":end_date, :type, INET_ATON(:ip), :secret_id, :user_id)";
 
     $state = $dbx->prepare($query);
     $state->bindParam("title", $title);
@@ -185,12 +189,13 @@ function createEvent() {
     $state->bindParam("end_date", $end);
     $state->bindParam("type", $type);
     $state->bindParam("ip", $ip);
-    $state->bindParam("owner_id", $owner_id);
+    $state->bindParam("secret_id", $secret_id);
+    $state->bindParam("user_id", $user_id);
     $state->execute();
     $id = $dbx->lastInsertId();
     //echo getEvent($id);
 
-    echo '{"owner_id": "'              . $owner_id    . '",'
+    echo '{"secret_id": "'             . $secret_id    . '",'
          .'"event": {"id":"'           . $id          . '",'
                   .  '"title":"'       . $title       . '",'
                   .  '"description":"' . $description . '",'
