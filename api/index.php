@@ -217,7 +217,8 @@ function createEvent() {
 function attendEvent() {
   $request = \Slim\Slim::getInstance()->request();
   $id = $request->post('id');
-  $phoneId = $request->post('phoneId');
+  $user_id = $request->post('user_id');
+  $ip = $_SERVER['REMOTE_ADDR'];
 
   if (isNullOrEmptyString($id) || isNullOrEmptyString($phoneId)) {
     echo '{"error": "An ID number is required"}';
@@ -227,10 +228,10 @@ function attendEvent() {
     $dbx = getConnection();
     //Checks if they are attending.
     $queryCheck = "SELECT * FROM " . $GLOBALS['table2'] . " WHERE id=:id and "
-                   . "phoneId=:phoneId";
+                   . "user_id=:user_id";
     $state = $dbx->prepare($queryCheck);
     $state->bindParam("id", $id);
-    $state->bindParam("phoneId", $phoneId);
+    $state->bindParam("user_id", $phoneId);
     $state->execute();
    
     if ($state->fetch(PDO::FETCH_ASSOC)) {
@@ -238,11 +239,12 @@ function attendEvent() {
     }
     else {
     //Adds their phone id to the attending table
-    $query = "INSERT INTO " . $GLOBALS['table2'] . " (id, phoneId) VALUES "
-           . "(:id, :phoneId)";
+    $query = "INSERT INTO " . $GLOBALS['table2'] . " (id, user_id, ip) VALUES "
+           . "(:id, :user_id, :ip)";
     $state = $dbx->prepare($query);
     $state->bindParam("id", $id);
-    $state->bindParam("phoneId", $phoneId);
+    $state->bindParam("user_id", $user_id);
+    $state->bindParam("ip", $ip);
     $state->execute();
     //Updates the attending amount 
     $queryAttending = "UPDATE " . $GLOBASL['table'] . " attending = attending + 1 "
