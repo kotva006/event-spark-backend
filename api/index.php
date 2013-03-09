@@ -219,7 +219,7 @@ function attendEvent() {
   $id = $request->post('id');
 
   if (isNullOrEmptyString($id)) {
-    echo '{"error": "An ID number is required"}';
+    echo '{"error": "An ID number is required"}'; die;
   }
 
   try {
@@ -260,6 +260,7 @@ function getAttending() {
   }
   catch (PDOException $e) {
     echo '{"error": "' . $e->getMessage() . '"}';
+    $dbx = NULL;
   }
 }
 
@@ -278,6 +279,7 @@ function reportEvent() {
   }
   catch (PDOException $e) {
     echo '{"error": "' . $e->getMessage() . '"}';
+    $dbx = NULL;
   }
 }
 
