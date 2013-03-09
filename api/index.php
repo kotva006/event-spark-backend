@@ -326,20 +326,75 @@ function getAttending() {
   }
 }
 
+// We allow users to report events for various reasons.
+// The following `reason` codes are understood:
+//   1. 
 function reportEvent() {
   $request = \Slim\Slim::getInstance()->request();
   $id = $request->post('id');
   $user_id = substr($request->post('user_id'), 0, 22);
   $ip = $request->getIp();
+  $reason = $request->post('reason');
+
+  if (isNullOrEmptyString($id)) {
+    echo '{"error": "An ID number is required."}'; die;
+  }
+  if (isNullOrEmptyString($user_id)) {
+    echo '{"error": "Internal user_id required."}'; die;
+  }
+  if (isNullOrEmptyString($reason)) {
+    echo '{"error": "A report reason code is required."}'; die;
+  }
 
   try {
     $dbx = getConnection();
 
-    $query = "UPDATE " . $GLOBALS["report_t"] . " SET report=report+1 WHERE id=:id";
-    $state = $dbx->prepare($query);
-    $state->bindParam('id', $id);
+    // See if the user has already reported the event.
+    $queryCount = "SELECT COUNT(*) FROM " . $GLOBALS['report_t'] . " "
+                . "WHERE id=:id AND user_id LIKE :user_id";
+    $state = $dbx->prepare($queryCount);
+    $state->bindParam("id", $id);
+    $state->bindParam("user_id", $user_id);
     $state->execute();
-    echo '{"text":"success"}';
+    $userReportCount = (int)$state->fetchColumn();
+
+    // If we have more than one row for a particular id and user, something is wrong.
+    if ($userReportCount > 1) {
+      echo '{"error": "Internal server error."}';
+      $dbx = NULL; die;
+    }
+
+    // The user has already reported the event if we have a report.
+    if ($userReportCount == 1) {
+      echo '{"result": "PREVIOUSLY_REPORTED"}';
+      $dbx = NULL; die;
+    }
+
+    // Verify that the same IP has not been report spamming.
+    $queryIP = "SELECT COUNT(*) FROM " . $GLOBALS['report_t'] . " "
+             . "WHERE id=:id AND ip=INET_ATON(:ip)";
+    $state = $dbx->prepare($queryIP);
+    $state->bindParam("id", $id);
+    $state->bindParam("ip", $ip);
+    $state->execute();
+    $ipReportCount = (int)$state->fetchColumn();
+
+    if ($ipReportCount > 3) {
+      echo '{"error": "Too many requests from the same IP."}';
+      $dbx = NULL; die;
+    }
+
+    // Add an entry to remember that the user reported.
+    $query = "INSERT INTO " . $GLOBALS['report_t'] . " (id, user_id, ip, reason) "
+           . "VALUES (:id, :user_id, INET_ATON(:ip), :reason)";
+    $state = $dbx->prepare($query);
+    $state->bindParam("id", $id);
+    $state->bindParam("user_id", $user_id);
+    $state->bindParam("ip", $ip);
+    $state->bindParam("reason", $reason);
+    $state->execute();
+
+    echo '{"result": "OK"}';
     $dbx = NULL;
   }
   catch (PDOException $e) {
