@@ -31,8 +31,16 @@ function getEvent($id) {
     $dbx = getConnection();
 
     // Creation the SQL query string.
-    $query = "SELECT id, title, description, longitude, latitude, start_date, end_date, type, attending "
-           . "FROM " . $GLOBALS["event_t"] . " WHERE id=:id";
+    $query = "SELECT e.id, "
+                  . "e.title, "
+                  . "e.description, "
+                  . "e.longitude, "
+                  . "e.latitude, "
+                  . "e.start_date, "
+                  . "e.end_date, "
+                  . "e.type, "
+                  . "(SELECT COUNT(*) from attending a WHERE a.id=:id) AS attending "
+           . "FROM " . $GLOBALS["event_t"] . " AS e WHERE e.id=:id";
 
     $stmt = $dbx->prepare($query);
     $stmt->bindParam("id", $id);
@@ -90,8 +98,16 @@ function getEventsByLocation() {
     $dbx = getConnection();
 
     // Creation the SQL query string.
-    $query = "SELECT id, title, description, longitude, latitude, start_date, end_date, type, attending "
-           . "FROM " . $GLOBALS["event_t"] . " "
+    $query = "SELECT e.id, "
+                  . "e.title, "
+                  . "e.description, "
+                  . "e.longitude, "
+                  . "e.latitude, "
+                  . "e.start_date, "
+                  . "e.end_date, "
+                  . "e.type, "
+                  . "(SELECT COUNT(*) from attending a WHERE a.id=e.id) AS attending "
+           . "FROM " . $GLOBALS["event_t"] . " AS e "
            . "WHERE longitude BETWEEN :lonsmall AND :lonbig "
            . "AND latitude BETWEEN :latsmall AND :latbig";
     $stmt = $dbx->prepare($query);
@@ -283,7 +299,7 @@ function getAttending() {
     $dbx = getConnection();
 
     // The number of selected rows indicates how many users have attended.
-    $query = "SELECT * FROM " . $GLOBALS["attending_t"] . " WHERE id=:id";
+    $query = "SELECT * FROM " . $GLOBALS["attend_t"] . " WHERE id=:id";
     $state = $dbx->prepare($query);
     $state->bindParam("id", $id);
     $state->execute();
