@@ -253,19 +253,31 @@ function attendEvent() {
     $state->bindParam("id", $id);
     $state->bindParam("user_id", $user_id);
     $state->execute();
-    $rowCount = (int)$state->fetchColumn();
-
-    // TODO: Check for an IP threshold.
+    $userAttendCount = (int)$state->fetchColumn();
 
     // If we have more than one row for a particular id and user, something is wrong.
-    if ($rowCount > 1) {
+    if ($userAttendCount > 1) {
       echo '{"error": "Internal server error."}';
       $dbx = NULL; die;
     }
 
     // The user has already attended the event if we have an attendance record.
-    if ($rowCount == 1) {
+    if ($userAttendCount == 1) {
       echo '{"result": "PREVIOUSLY_ATTENDED"}';
+      $dbx = NULL; die;
+    }
+
+    // Verify that the same IP has not been spamming the same event with different user_ids.
+    $queryIP = "SELECT COUNT(*) FROM " . $GLOBALS['attend_t'] . " "
+             . "WHERE id=:id AND ip=INET_ATON(:ip)";
+    $state = $dbx->prepare($queryIP);
+    $state->bindParam("id", $id);
+    $state->bindParam("ip", $ip);
+    $state->execute();
+    $ipAttendCount = (int)$state->fetchColumn();
+
+    if ($ipAttendCount > 3) {
+      echo '{"error": "Too many requests from the same IP."}';
       $dbx = NULL; die;
     }
 
