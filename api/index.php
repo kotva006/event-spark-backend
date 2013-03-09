@@ -217,21 +217,57 @@ function createEvent() {
 function attendEvent() {
   $request = \Slim\Slim::getInstance()->request();
   $id = $request->post('id');
+  $user_id = $request->post('user_id');
+  $ip = $_SERVER['REMOTE_ADDR'];
 
+<<<<<<< HEAD
   if (isNullOrEmptyString($id)) {
     echo '{"error": "An ID number is required"}'; die;
+=======
+  if (isNullOrEmptyString($id) || isNullOrEmptyString($phoneId)) {
+    echo '{"error": "An ID number is required"}';
+>>>>>>> b27d50dc0ff2eec9915bbb9ccef0084a11af05b5
   }
 
   try {
     $dbx = getConnection();
-
-    $query = "UPDATE " . $GLOBALS['table'] . " SET attending = attending + 1 "
-           . "WHERE id=:id";
+    //Checks if they are attending.
+    $queryCheck = "SELECT * FROM " . $GLOBALS['table2'] . " WHERE id=:id and "
+                   . "user_id=:user_id";
+    $state = $dbx->prepare($queryCheck);
+    $state->bindParam("id", $id);
+    $state->bindParam("user_id", $phoneId);
+    $state->execute();
+   
+    if ($state->fetch(PDO::FETCH_ASSOC)) {
+      echo '{"int":"0"}';
+    }
+    else {
+    //Adds their phone id to the attending table
+    $query = "INSERT INTO " . $GLOBALS['table2'] . " (id, user_id, ip) VALUES "
+           . "(:id, :user_id, :ip)";
     $state = $dbx->prepare($query);
     $state->bindParam("id", $id);
+    $state->bindParam("user_id", $user_id);
+    $state->bindParam("ip", $ip);
     $state->execute();
-    echo '{"text":"success"}';
+    //Updates the attending amount 
+    $queryAttending = "UPDATE " . $GLOBASL['table'] . " attending = attending + 1 "
+           . "WHERE id=:id";
+    $state = $dbx->prepare($queryAttending);
+    $state->bindParam("id", $id);
+    $state->execute();
+    
+    //Get new attending amount
+    $queryGet = "SELECT attending FROM " . $GLOBALS['table'] . " WHERE id=:id";
+    $state = $dbx->prepare($queryGet);
+    $state->bindParam("id", $id);
+    $state->execute();
+    $attending = $state->fetch(PDO::FETCH_ASSOC);
+    echo '{"int":"' . $attending['attending'] . '"}';
+    }
     $dbx = NULL;
+    
   }
   catch (PDOException $e) {
     echo '{"error": "' . $e->getMessage() . '"}';
