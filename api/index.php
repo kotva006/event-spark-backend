@@ -162,7 +162,7 @@ function createEvent() {
   $longitude = $request->post('longitude');
   $start = $request->post('start_date');
   $end = $request->post('end_date');
-  $user_id = $request->post('user_id');
+  $user_id = substr($request->post('user_id'), 0, 22);
 
   // Determine the request IP for use in spam prevention (TODO: Implement protection)
   $ip = $request->getIp();
@@ -329,7 +329,7 @@ function getAttending() {
 function reportEvent() {
   $request = \Slim\Slim::getInstance()->request();
   $id = $request->post('id');
-  $user_id = $request->post('user_id');
+  $user_id = substr($request->post('user_id'), 0, 22);
   $ip = $request->getIp();
 
   try {
