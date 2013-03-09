@@ -32,7 +32,7 @@ function getEvent($id) {
 
     // Creation the SQL query string.
     $query = "SELECT id, title, description, longitude, latitude, start_date, end_date, type, attending "
-           . "FROM " . $GLOBALS['table'] . " WHERE id=:id";
+           . "FROM " . $GLOBALS["event_t"] . " WHERE id=:id";
 
     $stmt = $dbx->prepare($query);
     $stmt->bindParam("id", $id);
@@ -91,7 +91,7 @@ function getEventsByLocation() {
 
     // Creation the SQL query string.
     $query = "SELECT id, title, description, longitude, latitude, start_date, end_date, type, attending "
-           . "FROM " . $GLOBALS['table'] . " "
+           . "FROM " . $GLOBALS["event_t"] . " "
            . "WHERE longitude BETWEEN :lonsmall AND :lonbig "
            . "AND latitude BETWEEN :latsmall AND :latbig";
     $stmt = $dbx->prepare($query);
@@ -175,7 +175,7 @@ function createEvent() {
     $secret_id = sha1(uniqid('', true) . $GLOBALS["salt"]);
 
     // Add the event information into the SQL Database
-    $query = "INSERT INTO " . $GLOBALS['table'] . " (title, description, longitude, "
+    $query = "INSERT INTO " . $GLOBALS["event_t"] . " (title, description, longitude, "
            . "latitude, start_date, end_date, type, ip, secret_id, user_id) "
            . "VALUES (:title, :description, :longitude, :latitude, :start_date, "
            . ":end_date, :type, INET_ATON(:ip), :secret_id, :user_id)";
@@ -218,56 +218,52 @@ function attendEvent() {
   $request = \Slim\Slim::getInstance()->request();
   $id = $request->post('id');
   $user_id = $request->post('user_id');
-  $ip = $_SERVER['REMOTE_ADDR'];
+  $ip = $request->getIp();
 
-<<<<<<< HEAD
   if (isNullOrEmptyString($id)) {
     echo '{"error": "An ID number is required"}'; die;
-=======
-  if (isNullOrEmptyString($id) || isNullOrEmptyString($phoneId)) {
-    echo '{"error": "An ID number is required"}';
->>>>>>> b27d50dc0ff2eec9915bbb9ccef0084a11af05b5
+  }
+  if (isNullOrEmptyString($user_id)) {
+    echo '{"error": "Internal user_id required."}'; die;
   }
 
   try {
     $dbx = getConnection();
-    //Checks if they are attending.
-    $queryCheck = "SELECT * FROM " . $GLOBALS['table2'] . " WHERE id=:id and "
-                   . "user_id=:user_id";
+
+    // See if the user has already attended.
+    $queryCheck = "SELECT * FROM " . $GLOBALS['attend_t'] . " "
+                . "WHERE id=:id and user_id=:user_id";
     $state = $dbx->prepare($queryCheck);
     $state->bindParam("id", $id);
-    $state->bindParam("user_id", $phoneId);
+    $state->bindParam("user_id", $user_id);
     $state->execute();
-   
-    if ($state->fetch(PDO::FETCH_ASSOC)) {
-      echo '{"int":"0"}';
+    $rowCount = $state->rowCount();
+
+    // TODO: Check for an IP threshold.
+
+    // If we have more than one row for a particular id and user, something is wrong.
+    if ($rowCount > 1) {
+      echo '{"error": "Internal server error."}';
+      $dbx = NULL; die;
     }
-    else {
-    //Adds their phone id to the attending table
-    $query = "INSERT INTO " . $GLOBALS['table2'] . " (id, user_id, ip) VALUES "
-           . "(:id, :user_id, :ip)";
+
+    // The user has already attended the event if we have an attendance record.
+    if ($rowCount == 1) {
+      echo '{"result": "PREVIOUSLY_ATTENDED"}';
+      $dbx = NULL; die;
+    }
+
+    // Add an entry to remember that the user attended.
+    $query = "INSERT INTO " . $GLOBALS['attend_t'] . " (id, user_id, ip) "
+           . "VALUES (:id, :user_id, :ip)";
     $state = $dbx->prepare($query);
     $state->bindParam("id", $id);
     $state->bindParam("user_id", $user_id);
     $state->bindParam("ip", $ip);
     $state->execute();
-    //Updates the attending amount 
-    $queryAttending = "UPDATE " . $GLOBASL['table'] . " attending = attending + 1 "
-           . "WHERE id=:id";
-    $state = $dbx->prepare($queryAttending);
-    $state->bindParam("id", $id);
-    $state->execute();
-    
-    //Get new attending amount
-    $queryGet = "SELECT attending FROM " . $GLOBALS['table'] . " WHERE id=:id";
-    $state = $dbx->prepare($queryGet);
-    $state->bindParam("id", $id);
-    $state->execute();
-    $attending = $state->fetch(PDO::FETCH_ASSOC);
-    echo '{"int":"' . $attending['attending'] . '"}';
-    }
+
+    echo '{"result": "OK"}';
     $dbx = NULL;
-    
   }
   catch (PDOException $e) {
     echo '{"error": "' . $e->getMessage() . '"}';
@@ -280,18 +276,20 @@ function getAttending() {
   $id = $request->get('id');
 
   if (isNullOrEmptyString($id)) {
-    echo '{"error": "An ID number is required"}';
+    echo '{"error": "An ID number is required"}'; die;
   }
 
   try {
     $dbx = getConnection();
-    $query = "SELECT attending FROM " . $GLOBALS['table'] . " WHERE id=:id";
+
+    // The number of selected rows indicates how many users have attended.
+    $query = "SELECT * FROM " . $GLOBALS["attending_t"] . " WHERE id=:id";
     $state = $dbx->prepare($query);
     $state->bindParam("id", $id);
     $state->execute();
-    $attending = $state->fetch(PDO::FETCH_OBJ);
+    $attendCount = $state->rowCount();
 
-    echo json_encode($attending);
+    echo '{"attending": "' . $attendCount . '"}';
     $dbx = NULL;
   }
   catch (PDOException $e) {
@@ -303,10 +301,13 @@ function getAttending() {
 function reportEvent() {
   $request = \Slim\Slim::getInstance()->request();
   $id = $request->post('id');
+  $user_id = $request->post('user_id');
+  $ip = $request->getIp();
 
   try {
     $dbx = getConnection();
-    $query = "UPDATE " . $GLOBALS['table'] . " SET report=report+1 WHERE id=:id";
+
+    $query = "UPDATE " . $GLOBALS["report_t"] . " SET report=report+1 WHERE id=:id";
     $state = $dbx->prepare($query);
     $state->bindParam('id', $id);
     $state->execute();
@@ -327,7 +328,9 @@ function getConnection() {
   include("$_SERVER[DOCUMENT_ROOT]/../settings.php");
 
   // Keep the table and salt variables available globally.
-  $GLOBALS["table"] = $table;
+  $GLOBALS["event_t"] = $event_t;
+  $GLOBALS["attend_t"] = $attend_t;
+  $GLOBALS["report_t"] = $report_t;
   $GLOBALS["salt"] = $salt;
 
   $dbh = new PDO("mysql:host=$db_host;dbname=$db_name", $db_user, $db_pass);
