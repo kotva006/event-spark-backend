@@ -106,7 +106,7 @@ function getEventsByLocation() {
                   . "e.start_date, "
                   . "e.end_date, "
                   . "e.type, "
-                  . "(SELECT COUNT(*) from attending a WHERE a.id=e.id) AS attending "
+                  . "(SELECT COUNT(*) FROM attending a WHERE a.id=e.id) AS attending "
            . "FROM " . $GLOBALS["event_t"] . " AS e "
            . "WHERE longitude BETWEEN :lonsmall AND :lonbig "
            . "AND latitude BETWEEN :latsmall AND :latbig";
@@ -233,7 +233,7 @@ function createEvent() {
 function attendEvent() {
   $request = \Slim\Slim::getInstance()->request();
   $id = $request->post('id');
-  $user_id = $request->post('user_id');
+  $user_id = substr($request->post('user_id'), 0, 22);
   $ip = $request->getIp();
 
   if (isNullOrEmptyString($id)) {
@@ -247,13 +247,13 @@ function attendEvent() {
     $dbx = getConnection();
 
     // See if the user has already attended.
-    $queryCheck = "SELECT * FROM " . $GLOBALS['attend_t'] . " "
-                . "WHERE id=:id and user_id=:user_id";
+    $queryCheck = "SELECT COUNT(*) FROM " . $GLOBALS['attend_t'] . " "
+                . "WHERE id=:id AND user_id LIKE :user_id";
     $state = $dbx->prepare($queryCheck);
     $state->bindParam("id", $id);
     $state->bindParam("user_id", $user_id);
     $state->execute();
-    $rowCount = $state->rowCount();
+    $rowCount = (int)$state->fetchColumn();
 
     // TODO: Check for an IP threshold.
 
@@ -271,7 +271,7 @@ function attendEvent() {
 
     // Add an entry to remember that the user attended.
     $query = "INSERT INTO " . $GLOBALS['attend_t'] . " (id, user_id, ip) "
-           . "VALUES (:id, :user_id, :ip)";
+           . "VALUES (:id, :user_id, INET_ATON(:ip))";
     $state = $dbx->prepare($query);
     $state->bindParam("id", $id);
     $state->bindParam("user_id", $user_id);
