@@ -220,7 +220,7 @@ function createEvent() {
                   .  '"start_date":"'  . $start       . '",'
                   .  '"end_date":"'    . $end         . '",'
                   .  '"type":"'        . $type        . '",'
-                  .  '"attending":"1"}}';
+                  .  '"attending":"0"}}';
     $dbx = NULL;
   }
   catch (PDOException $e) {
@@ -328,7 +328,9 @@ function getAttending() {
 
 // We allow users to report events for various reasons.
 // The following `reason` codes are understood:
-//   1. 
+//   0. Inaccurate details
+//   1. Offensive details
+//   2. Promotes illegal activity
 function reportEvent() {
   $request = \Slim\Slim::getInstance()->request();
   $id = $request->post('id');
