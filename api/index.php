@@ -109,7 +109,9 @@ function getEventsByLocation() {
                   . "(SELECT COUNT(*) FROM attending a WHERE a.id=e.id) AS attending "
            . "FROM " . $GLOBALS["event_t"] . " AS e "
            . "WHERE longitude BETWEEN :lonsmall AND :lonbig "
-           . "AND latitude BETWEEN :latsmall AND :latbig";
+           . "AND latitude BETWEEN :latsmall AND :latbig "
+           . "AND UNIX_TIMESTAMP(NOW()) < end_date "
+           . "AND (start_date - 10800) < UNIX_TIMESTAMP(NOW())";
     $stmt = $dbx->prepare($query);
     $stmt->bindParam("lonsmall", $lonsmall);
     $stmt->bindParam("lonbig", $lonbig);
