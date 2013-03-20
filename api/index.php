@@ -19,6 +19,7 @@ $app->get('/events/:id', function($id) {
 });
 $app->get('/events/search/', 'getEventsByLocation');
 $app->post('/events', 'createEvent');
+$app->post('/events/updateEvent/', 'updateEvent');
 $app->post('/events/attend/', 'attendEvent');
 $app->get('/events/getAttend/', 'getAttending');
 $app->post('/events/report/', 'reportEvent');
@@ -131,6 +132,7 @@ function getEventsByLocation() {
   }
 }
 
+
 // Adds an event to the database.
 //
 // POST Parameters:
@@ -228,6 +230,92 @@ function createEvent() {
   catch (PDOException $e) {
     echo '{"error": "' . $e->getMessage() . '"}';
     $dbx = NULL;
+    die;
+  }
+}
+
+// Either removes the event from our talbe or updates the event
+// Will return OK or the event on Success or error otherwise.
+// The command post is what decides the function
+
+function updateEvent() {
+  $request = \Slim\Slim::getInstance()->request();
+
+  $command = $request->post('command');
+  
+  $id = $request->post('id');
+  $title = $request->post('title');
+  $description = $request->post('description');
+  $type = $request->post('type');
+  $latitude = $request->post('latitude');
+  $longitude = $request->post('longitude');
+  $start = $request->post('start_date');
+  $end = $request->post('end_date');
+  $user_id = substr($request->post('user_id'), 0, 22);
+
+  if (isNullOrEmpty($id)) { echo '{"error":"invalid id"}'; die;}
+  if (isNullOrEmpty($user_id)) { echo '{"error":"invalid user"}'; die;}
+  if (isNullOrEmpty($command) || $command != 'delete' || $command != 'update') {
+    echo '{"error":"invalid arguments"}'; die; }
+
+  try {
+    $dbx = getConnection();
+    if ($command == 'delete') {
+      $query_event = 'DELETE FROM ' . $GLOBALS['event_t'] . ', '
+                                    . $GLOBALS['attend_t'] . ', '
+                                    . $GLOBALS['report_t'] 
+                                    . ' USING ' . $GLOBALS['event_t'] 
+                                    . ' INNER JOIN ' . $GLOBALS['attend_t'] 
+                                    . ' INNER JOIN ' . $GLOBALS['report_t'] 
+                                    . ' WHERE ' . $GLOBALS['event_t'] . '.id=:id'
+                                             . ' AND ' . $GLOBALS['event_t'] . '.user_id=:user_id'
+                                             . ' AND ' . $GLOBALS['attend_t'] . '.id=:id'
+                                             . ' AND ' . $GLOBALS['report_t'] . '.id=:id';
+      $state = $dbx->prepare($query);
+      $state->bindParam("id", $id);
+      $state->bindParam("user_id", $user_id);
+      $state->execute();
+      $dbx = null;
+      echo '{"result":"OK"}';
+
+    } else if ($command == 'update') {
+      $query_update = 'UPDATE ' . $GLOBALS['event_t'] . ' SET '
+                                . 'title=:title '
+                                . 'description=:description '
+                                . 'type=:type '
+                                . 'start_date=:start_date '
+                                . 'end_date=:end_date '
+                                . 'WHERE id=:id';
+
+      $state = $dbx->prepare($query);
+      $state->bindParam("title", $title);
+      $state->bindParam("description", $description);
+      $state->bindParam("longitude", $longitude);
+      $state->bindParam("latitude", $latitude);
+      $state->bindParam("start_date", $start);
+      $state->bindParam("end_date", $end);
+      $state->bindParam("type", $type);
+      $state->bindParam("ip", $ip);
+      $state->bindParam("user_id", $user_id);
+      $state->execute();
+      echo '{"event": {' 
+               . '"id":"' . $id . '",'
+               . '"title":"' . $title . '",'
+               . '"description":"' . $description . '",'
+               . '"type":"' . $type . '",'
+               . '"start_date":"' . $start . '",'
+               . '"end_date":"' . $end . '",}}';
+      $dbx = null;
+      
+    } else {
+      $dbx = null;
+      echo '{"error":"invalid argument"}';
+      die;
+   }
+  }
+  catch (PDOException $e) {
+    echo '{"error":"' . $e->getMessage() . '"}';
+    $dbx = null;
     die;
   }
 }
