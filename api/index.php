@@ -235,9 +235,9 @@ function createEvent() {
   }
 }
 
-// Either removes the event from our talbe or updates the event
-// Will return OK or the event on Success or error otherwise.
-// The command post is what decides the function
+// This function deletes the event from the event table
+// Returns text on success error otherwise
+// Lets the cron job clean up the other tables
 
 function deleteEvent() {
   $request = \Slim\Slim::getInstance()->request();
@@ -274,6 +274,9 @@ function deleteEvent() {
   }
 }
 
+// Takes in an event id and new info and will update the event
+// Returns the new event on success
+
 function updateEvent() {
   $request = \Slim\Slim::getInstance()->request();
 
@@ -286,6 +289,7 @@ function updateEvent() {
   $longitude = $request->put('longitude');
   $start = $request->put('start_date');
   $end = $request->put('end_date');
+  $attendance = $request->put('attendance');
   $user_id = substr($request->put('user_id'), 0, 22);
 
   if (isNullOrEmpty($id)) { echo '{"error":"invalid id"}'; die;}
@@ -319,6 +323,7 @@ function updateEvent() {
              . '"title":"' . $title . '",'
              . '"description":"' . $description . '",'
              . '"type":"' . $type . '",'
+             . '"attendance":"' . $attendance . '",'
              . '"latitude":"' . $latitude . '",'
              . '"longitude":"' . $longitude . '",'
              . '"start_date":"' . $start . '",'
