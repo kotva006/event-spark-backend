@@ -19,7 +19,8 @@ $app->get('/events/:id', function($id) {
 });
 $app->get('/events/search/', 'getEventsByLocation');
 $app->post('/events', 'createEvent');
-$app->post('/events/updateEvent/', 'updateEvent');
+$app->delete('/events/deleteEvent', 'deleteEvent');
+$app->put('/events/updateEvent/', 'updateEvent');
 $app->post('/events/attend/', 'attendEvent');
 $app->get('/events/getAttend/', 'getAttending');
 $app->post('/events/report/', 'reportEvent');
@@ -238,80 +239,91 @@ function createEvent() {
 // Will return OK or the event on Success or error otherwise.
 // The command post is what decides the function
 
-function updateEvent() {
+function deleteEvent() {
   $request = \Slim\Slim::getInstance()->request();
 
-  $command = $request->post('command');
+  $id = $request->delete('id');
+  $user_id = substr($request->delete('user_id'), 0, 22);
   
-  $id = $request->post('id');
-  $title = $request->post('title');
-  $description = $request->post('description');
-  $type = $request->post('type');
-  $latitude = $request->post('latitude');
-  $longitude = $request->post('longitude');
-  $start = $request->post('start_date');
-  $end = $request->post('end_date');
-  $user_id = substr($request->post('user_id'), 0, 22);
-
-  if (isNullOrEmpty($id)) { echo '{"error":"invalid id"}'; die;}
-  if (isNullOrEmpty($user_id)) { echo '{"error":"invalid user"}'; die;}
-  if (isNullOrEmpty($command) || $command != 'delete' || $command != 'update') {
-    echo '{"error":"invalid arguments"}'; die; }
+  if (isNullOrEmpty($id)) { echo '{"error":"Invalid id"}'; die;}
+  if (isNullOrEmpty($user_id)) { echo '{"error":"Invalid user id"}'; die;}
 
   try {
     $dbx = getConnection();
-    if ($command == 'delete') {
-      $query_event = 'DELETE FROM ' . $GLOBALS['event_t'] . ', '
-                                    . $GLOBALS['attend_t'] . ', '
-                                    . $GLOBALS['report_t'] 
-                                    . ' USING ' . $GLOBALS['event_t'] 
-                                    . ' INNER JOIN ' . $GLOBALS['attend_t'] 
-                                    . ' INNER JOIN ' . $GLOBALS['report_t'] 
-                                    . ' WHERE ' . $GLOBALS['event_t'] . '.id=:id'
-                                             . ' AND ' . $GLOBALS['event_t'] . '.user_id=:user_id'
-                                             . ' AND ' . $GLOBALS['attend_t'] . '.id=:id'
-                                             . ' AND ' . $GLOBALS['report_t'] . '.id=:id';
-      $state = $dbx->prepare($query);
-      $state->bindParam("id", $id);
-      $state->bindParam("user_id", $user_id);
-      $state->execute();
-      $dbx = null;
-      echo '{"result":"OK"}';
+    
+    $query_event = 'DELETE FROM ' . $GLOBALS['event_t'] 
+                                  . ' WHERE id=:id and user_id=:user_id';
+    $state = $dbx->prepare($query_event);
+    $state->bindParam("id", $id);
+    $state->bindParam("user_id", $user_id);
+    $state->execute();
 
-    } else if ($command == 'update') {
-      $query_update = 'UPDATE ' . $GLOBALS['event_t'] . ' SET '
-                                . 'title=:title '
-                                . 'description=:description '
-                                . 'type=:type '
-                                . 'start_date=:start_date '
-                                . 'end_date=:end_date '
-                                . 'WHERE id=:id';
-
-      $state = $dbx->prepare($query);
-      $state->bindParam("title", $title);
-      $state->bindParam("description", $description);
-      $state->bindParam("longitude", $longitude);
-      $state->bindParam("latitude", $latitude);
-      $state->bindParam("start_date", $start);
-      $state->bindParam("end_date", $end);
-      $state->bindParam("type", $type);
-      $state->bindParam("ip", $ip);
-      $state->bindParam("user_id", $user_id);
-      $state->execute();
-      echo '{"event": {' 
-               . '"id":"' . $id . '",'
-               . '"title":"' . $title . '",'
-               . '"description":"' . $description . '",'
-               . '"type":"' . $type . '",'
-               . '"start_date":"' . $start . '",'
-               . '"end_date":"' . $end . '",}}';
-      $dbx = null;
-      
-    } else {
-      $dbx = null;
-      echo '{"error":"invalid argument"}';
+    $count = $state->rowCount();
+    if ($count < 1) {
+      echo '{"error":"No event deleted"}';
+      $dbx = NULL;
       die;
-   }
+    }
+    $dbx = NULL;
+    echo '{"text":"Success"}';
+  }
+  catch (PDOException $e) {
+    echo '{"error":"' . $e->getMessage() . '"}';
+    $dbx = null;
+    die;
+  }
+}
+
+function updateEvent() {
+  $request = \Slim\Slim::getInstance()->request();
+
+  
+  $id = $request->put('id');
+  $title = $request->put('title');
+  $description = $request->put('description');
+  $type = $request->put('type');
+  $latitude = $request->put('latitude');
+  $longitude = $request->put('longitude');
+  $start = $request->put('start_date');
+  $end = $request->put('end_date');
+  $user_id = substr($request->put('user_id'), 0, 22);
+
+  if (isNullOrEmpty($id)) { echo '{"error":"invalid id"}'; die;}
+  if (isNullOrEmpty($user_id)) { echo '{"error":"invalid user"}'; die;}
+  if (isNullOrEmpty($title)) { echo '{"error":"invalid title"}'; die;}
+  if (isNullOrEmpty($type)) {echo '{"error":"invalid type"}'; die;}
+  if (isNullOrEmpty($end)) {echo '{"error":"invalid end date"}'; die;}
+  if (inNullOrEmpty($latitude) || isNullOrEmpty($longitude)) {
+    echo '{"error":"invalid location"}'; die;}
+
+  try {
+    $dbx = getConnection();
+    $query_update = 'UPDATE ' . $GLOBALS['event_t'] . ' SET '
+                              . 'title=:title '
+                              . 'description=:description '
+                              . 'type=:type '
+                              . 'start_date=:start_date '
+                              . 'end_date=:end_date '
+                              . 'WHERE id=:id AND user_id=:user_id';
+
+    $state = $dbx->prepare($query);
+    $state->bindParam("title", $title);
+    $state->bindParam("description", $description);
+    $state->bindParam("start_date", $start);
+    $state->bindParam("end_date", $end);
+    $state->bindParam("type", $type);
+    $state->bindParam("user_id", $user_id);
+    $state->execute();
+    echo '{"event": {' 
+             . '"id":"' . $id . '",'
+             . '"title":"' . $title . '",'
+             . '"description":"' . $description . '",'
+             . '"type":"' . $type . '",'
+             . '"latitude":"' . $latitude . '",'
+             . '"longitude":"' . $longitude . '",'
+             . '"start_date":"' . $start . '",'
+             . '"end_date":"' . $end . '",}}';
+    $dbx = null;
   }
   catch (PDOException $e) {
     echo '{"error":"' . $e->getMessage() . '"}';
