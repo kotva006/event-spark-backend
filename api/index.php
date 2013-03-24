@@ -242,11 +242,16 @@ function createEvent() {
 function deleteEvent() {
   $request = \Slim\Slim::getInstance()->request();
 
-  $id = $request->delete('id');
-  $user_id = substr($request->delete('user_id'), 0, 22);
+  if (!$request->isDelete()) {
+    echo '{"error":"invalid command"}';
+    die;
+  }
+
+  $id = $request->params('id');
+  $user_id = substr($request->params('user_id'), 0, 22);
   
-  if (isNullOrEmpty($id)) { echo '{"error":"Invalid id"}'; die;}
-  if (isNullOrEmpty($user_id)) { echo '{"error":"Invalid user id"}'; die;}
+  if (isNullOrEmptyString($id)) { echo '{"error":"Invalid id"}'; die;}
+  if (isNullOrEmptyString($user_id)) { echo '{"error":"Invalid user id"}'; die;}
 
   try {
     $dbx = getConnection();
@@ -292,25 +297,26 @@ function updateEvent() {
   $attendance = $request->put('attendance');
   $user_id = substr($request->put('user_id'), 0, 22);
 
-  if (isNullOrEmpty($id)) { echo '{"error":"invalid id"}'; die;}
-  if (isNullOrEmpty($user_id)) { echo '{"error":"invalid user"}'; die;}
-  if (isNullOrEmpty($title)) { echo '{"error":"invalid title"}'; die;}
-  if (isNullOrEmpty($type)) {echo '{"error":"invalid type"}'; die;}
-  if (isNullOrEmpty($end)) {echo '{"error":"invalid end date"}'; die;}
-  if (inNullOrEmpty($latitude) || isNullOrEmpty($longitude)) {
+  if (isNullOrEmptyString($id)) { echo '{"error":"invalid id"}'; die;}
+  if (isNullOrEmptyString($user_id)) { echo '{"error":"invalid user"}'; die;}
+  if (isNullOrEmptyString($title)) { echo '{"error":"invalid title"}'; die;}
+  if (isNullOrEmptyString($type)) {echo '{"error":"invalid type"}'; die;}
+  if (isNullOrEmptyString($end)) {echo '{"error":"invalid end date"}'; die;}
+  if (isNullOrEmptyString($latitude) || isNullOrEmptyString($longitude)) {
     echo '{"error":"invalid location"}'; die;}
 
   try {
     $dbx = getConnection();
     $query_update = 'UPDATE ' . $GLOBALS['event_t'] . ' SET '
-                              . 'title=:title '
-                              . 'description=:description '
-                              . 'type=:type '
-                              . 'start_date=:start_date '
+                              . 'title=:title, '
+                              . 'description=:description, '
+                              . 'type=:type, '
+                              . 'start_date=:start_date, '
                               . 'end_date=:end_date '
                               . 'WHERE id=:id AND user_id=:user_id';
 
-    $state = $dbx->prepare($query);
+    $state = $dbx->prepare($query_update);
+    $state->bindParam("id", $id);
     $state->bindParam("title", $title);
     $state->bindParam("description", $description);
     $state->bindParam("start_date", $start);
@@ -323,11 +329,11 @@ function updateEvent() {
              . '"title":"' . $title . '",'
              . '"description":"' . $description . '",'
              . '"type":"' . $type . '",'
-             . '"attendance":"' . $attendance . '",'
+             . '"attending":"' . $attendance . '",'
              . '"latitude":"' . $latitude . '",'
              . '"longitude":"' . $longitude . '",'
              . '"start_date":"' . $start . '",'
-             . '"end_date":"' . $end . '",}}';
+             . '"end_date":"' . $end . '"}}';
     $dbx = null;
   }
   catch (PDOException $e) {
