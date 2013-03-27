@@ -19,7 +19,7 @@ $app->get('/events/:id', function($id) {
 });
 $app->get('/events/search/', 'getEventsByLocation');
 $app->post('/events', 'createEvent');
-$app->delete('/events/deleteEvent', 'deleteEvent');
+$app->delete('/events/:id', 'deleteEvent');
 $app->put('/events/updateEvent/', 'updateEvent');
 $app->post('/events/attend/', 'attendEvent');
 $app->get('/events/getAttend/', 'getAttending');
@@ -238,39 +238,45 @@ function createEvent() {
 // This function deletes the event from the event table
 // Returns text on success error otherwise
 // Lets the cron job clean up the other tables
-
-function deleteEvent() {
+function deleteEvent($id) {
   $request = \Slim\Slim::getInstance()->request();
 
   if (!$request->isDelete()) {
-    echo '{"error":"invalid command"}';
+    echo '{"error": "REST call must be from an HTTP DELETE routing."}';
     die;
   }
 
-  $id = $request->params('id');
   $user_id = substr($request->params('user_id'), 0, 22);
-  
-  if (isNullOrEmptyString($id)) { echo '{"error":"Invalid id"}'; die;}
-  if (isNullOrEmptyString($user_id)) { echo '{"error":"Invalid user id"}'; die;}
+  $secret_id = $request->params('secret_id');
+
+  if (isNullOrEmptyString($id)) {
+    echo '{"error": "Provide an id to delete an event."}'; die;
+  }
+  if (isNullOrEmptyString($user_id)) {
+    echo '{"error": "Provide a valid user_id to delete an event."}'; die;
+  }
+  if (isNullOrEmptyString($secret_id)) {
+    echo '{"error": "Provide a valid secret_id to delete an event."}'; die;
+  }
 
   try {
     $dbx = getConnection();
-    
-    $query_event = 'DELETE FROM ' . $GLOBALS['event_t'] 
-                                  . ' WHERE id=:id and user_id=:user_id';
-    $state = $dbx->prepare($query_event);
+    $query_del = 'DELETE FROM ' . $GLOBALS['event_t']
+                                . ' WHERE id=:id AND user_id=:user_id AND secret_id=:secret_id';
+    $state = $dbx->prepare($query_del);
     $state->bindParam("id", $id);
     $state->bindParam("user_id", $user_id);
+    $state->bindParam("secret_id", $secret_id);
     $state->execute();
 
     $count = $state->rowCount();
     if ($count < 1) {
-      echo '{"error":"No event deleted"}';
+      echo '{"error": "The event could not be deleted."}';
       $dbx = NULL;
       die;
     }
     $dbx = NULL;
-    echo '{"text":"Success"}';
+    echo '{"result": "OK"}';
   }
   catch (PDOException $e) {
     echo '{"error":"' . $e->getMessage() . '"}';
@@ -285,7 +291,6 @@ function deleteEvent() {
 function updateEvent() {
   $request = \Slim\Slim::getInstance()->request();
 
-  
   $id = $request->put('id');
   $title = $request->put('title');
   $description = $request->put('description');
@@ -324,7 +329,7 @@ function updateEvent() {
     $state->bindParam("type", $type);
     $state->bindParam("user_id", $user_id);
     $state->execute();
-    echo '{"event": {' 
+    echo '{"event": {'
              . '"id":"' . $id . '",'
              . '"title":"' . $title . '",'
              . '"description":"' . $description . '",'
