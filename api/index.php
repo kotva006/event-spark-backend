@@ -20,7 +20,7 @@ $app->get('/events/:id', function($id) {
 $app->get('/events/search/', 'getEventsByLocation');
 $app->post('/events', 'createEvent');
 $app->delete('/events/:id', 'deleteEvent');
-$app->put('/events/updateEvent/', 'updateEvent');
+$app->put('/events/:id', 'updateEvent');
 $app->post('/events/attend/', 'attendEvent');
 $app->get('/events/getAttend/', 'getAttending');
 $app->post('/events/report/', 'reportEvent');
@@ -242,8 +242,7 @@ function deleteEvent($id) {
   $request = \Slim\Slim::getInstance()->request();
 
   if (!$request->isDelete()) {
-    echo '{"error": "REST call must be from an HTTP DELETE routing."}';
-    die;
+    echo '{"error": "REST call must be from an HTTP DELETE routing."}'; die;
   }
 
   $user_id = substr($request->params('user_id'), 0, 22);
@@ -287,59 +286,106 @@ function deleteEvent($id) {
 
 // Takes in an event id and new info and will update the event
 // Returns the new event on success
-
-function updateEvent() {
+function updateEvent($id) {
   $request = \Slim\Slim::getInstance()->request();
 
-  $id = $request->put('id');
+  if (!$request->isPut()) {
+    echo '{"error": "REST call must be from an HTTP PUT routing."}'; die;
+  }
+
+  $user_id = substr($request->put('user_id'), 0, 22);
+  $secret_id = $request->put('secret_id');
+
   $title = $request->put('title');
   $description = $request->put('description');
   $type = $request->put('type');
-  $latitude = $request->put('latitude');
-  $longitude = $request->put('longitude');
-  $start = $request->put('start_date');
-  $end = $request->put('end_date');
-  $attendance = $request->put('attendance');
-  $user_id = substr($request->put('user_id'), 0, 22);
+  $startDate = $request->put('start_date');
+  $endDate = $request->put('end_date');
 
-  if (isNullOrEmptyString($id)) { echo '{"error":"invalid id"}'; die;}
-  if (isNullOrEmptyString($user_id)) { echo '{"error":"invalid user"}'; die;}
-  if (isNullOrEmptyString($title)) { echo '{"error":"invalid title"}'; die;}
-  if (isNullOrEmptyString($type)) {echo '{"error":"invalid type"}'; die;}
-  if (isNullOrEmptyString($end)) {echo '{"error":"invalid end date"}'; die;}
-  if (isNullOrEmptyString($latitude) || isNullOrEmptyString($longitude)) {
-    echo '{"error":"invalid location"}'; die;}
+  // Check for the required parameters for updating.
+  if (isNullOrEmptyString($id)) {
+    echo '{"error": "Updating an event requires an id."}'; die;
+  }
+  if (isNullOrEmptyString($user_id)) {
+    echo '{"error": "Please submit with a user_id parameter."}'; die;
+  }
+  if (isNullOrEmptyString($secret_id)) {
+    echo '{"error": "Please submit with a secret_id parameter."}'; die;
+  }
+
+  // Ensure that some parameter has been updated.
+  if (isNullOrEmptyString($title) && isNullOrEmptyString($description) &&
+      isNullOrEmptyString($type) && isNullOrEmptyString($startDate) &&
+      isNullOrEmptyString($endDate)) {
+    echo '{"error": "Please provide some updated data for the event."}'; die;
+  }
 
   try {
     $dbx = getConnection();
-    $query_update = 'UPDATE ' . $GLOBALS['event_t'] . ' SET '
-                              . 'title=:title, '
-                              . 'description=:description, '
-                              . 'type=:type, '
-                              . 'start_date=:start_date, '
-                              . 'end_date=:end_date '
-                              . 'WHERE id=:id AND user_id=:user_id';
+
+    // Build the query based on what properties have been updated.
+    $query_update = 'UPDATE ' . $GLOBALS['event_t'] . ' SET ';
+    if (!isNullOrEmptyString($title))
+      $query_update .= 'title=:title, ';
+    if (!isNullOrEmptyString($description))
+      $query_update .= 'description=:description, ';
+    if (!isNullOrEmptyString($type))
+      $query_update .= 'type=:type, ';
+    if (!isNullOrEmptyString($startDate))
+      $query_update .= 'start_date=:start_date, ';
+    if (!isNullOrEmptyString($endDate))
+      $query_update .= 'end_date=:end_date ';
+
+    // Trim a trailing comma, if necessary.
+    if (endsWith($query_update, ', '))
+      $query_update = substr($query_update, 0, -2) . ' ';
+
+    $query_update .= 'WHERE id=:id AND user_id=:user_id AND secret_id=:secret_id';
 
     $state = $dbx->prepare($query_update);
     $state->bindParam("id", $id);
-    $state->bindParam("title", $title);
-    $state->bindParam("description", $description);
-    $state->bindParam("start_date", $start);
-    $state->bindParam("end_date", $end);
-    $state->bindParam("type", $type);
     $state->bindParam("user_id", $user_id);
+    $state->bindParam("secret_id", $secret_id);
+    if (!isNullOrEmptyString($title))
+      $state->bindParam("title", $title);
+    if (!isNullOrEmptyString($description))
+      $state->bindParam("description", $description);
+    if (!isNullOrEmptyString($type))
+      $state->bindParam("type", $type);
+    if (!isNullOrEmptyString($startDate))
+      $state->bindParam("start_date", $startDate);
+    if (!isNullOrEmptyString($endDate))
+      $state->bindParam("end_date", $endDate);
+
     $state->execute();
-    echo '{"event": {'
-             . '"id":"' . $id . '",'
-             . '"title":"' . $title . '",'
-             . '"description":"' . $description . '",'
-             . '"type":"' . $type . '",'
-             . '"attending":"' . $attendance . '",'
-             . '"latitude":"' . $latitude . '",'
-             . '"longitude":"' . $longitude . '",'
-             . '"start_date":"' . $start . '",'
-             . '"end_date":"' . $end . '"}}';
+
+    // Verify that an event was actually updated.
+    $count = $state->rowCount();
+    if ($count < 1) {
+      echo '{"error": "The event was not updated."}';
+      $dbx = NULL;
+      die;
+    }
     $dbx = null;
+
+    // Return the changed values as JSON.
+    $ret = '{"changes": {';
+    if (!isNullOrEmptyString($title))
+      $ret .= '"title":"' . $title . '",';
+    if (!isNullOrEmptyString($description))
+      $ret .= '"description":"' . $description . '",';
+    if (!isNullOrEmptyString($type))
+      $ret .= '"type":"' . $type . '",';
+    if (!isNullOrEmptyString($startDate))
+      $ret .= '"start_date":"' . $startDate . '",';
+    if (!isNullOrEmptyString($endDate))
+      $ret .= '"end_date":"' . $endDate . '"}}';
+
+    // Trim a trailing comma, if necessary.
+    if (endsWith($ret, ','))
+      $ret = substr($ret, 0, -1) . '}}';
+
+    echo $ret;
   }
   catch (PDOException $e) {
     echo '{"error":"' . $e->getMessage() . '"}';
@@ -545,6 +591,14 @@ function getConnection() {
 // Validation helper (String is present and neither empty nor only white space)
 function isNullOrEmptyString($field) {
   return (!isset($field) || trim($field) === '');
+}
+
+// Tests whether a string ends with a certain string.
+function endsWith($input, $ending) {
+  $length = strlen($ending);
+  if ($length == 0)
+    return true;
+  return (substr($input, -$length) === $ending);
 }
 
 ?>
