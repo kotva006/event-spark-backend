@@ -8,6 +8,7 @@ ini_set('display_errors', 'On');
 error_reporting(E_ALL | E_STRICT);
 
 require 'Slim/Slim.php';
+require 'display.php';
 \Slim\Slim::registerAutoloader();
 
 $app = new \Slim\Slim();
@@ -24,6 +25,7 @@ $app->put('/events/:id', 'updateEvent');
 $app->post('/events/attend/', 'attendEvent');
 $app->get('/events/getAttend/', 'getAttending');
 $app->post('/events/report/', 'reportEvent');
+$app->get('/displayEvent/:id', 'displayEvent');
 
 $app->run();
 
@@ -227,6 +229,7 @@ function createEvent() {
                   .  '"type":"'        . $type        . '",'
                   .  '"attending":"0"}}';
     $dbx = NULL;
+    addWebPage($id, $title);
   }
   catch (PDOException $e) {
     echo '{"error": "' . $e->getMessage() . '"}';
@@ -234,6 +237,39 @@ function createEvent() {
     die;
   }
 }
+// Every Post in facebook is treated as an object.
+// Facebook references static webpages when it links our objects and posts
+// Every time we create an event a static webpage will be created for it in
+// the Facebook directory
+//This is an internal function only called by the createEvent function
+function addWebPage($id, $title) {
+
+  if (isNullOrEmptyString($id) || isNullOrEmptyString($title)) {
+    echo '{"error":"invalid arguments to server processing"}';
+    die;
+  }
+
+  $fileLocation = "./facebook/" . $id . '.html';
+  $handle = fopen($fileLocation, 'w'); 
+  if ($handle) {
+    echo '{"error":"Failed to open webpage"}';
+    die;
+  }
+  $wrtieString = '<html><head prefix="og: http://ogp.me/ns# fb: '
+                 . 'http://ogp.me/ns/fb# appchallenge_arrows: '
+                 . 'http://ogp.me/ns/fb/appchallenge_arrows#"> '
+                 . '<meta property="fb:app_id" content="631935130155263" /> '
+                 . '<meta property="og:type"   content="appchallenge_arrows:event" /> '
+                 . '<meta property="og:url" content="http://saypoint.dreamhosters.com/api'
+                 . 'eventDisplay/' . $id . ' />'
+                 . '<meta property="og:title"  content="' . $title . '" /> '
+                 . '<meta property="og:image"  content='
+                 . '"http://saypoint.dreamhosters.com/facebook/arrowsLogo.png" />'
+                 . '<body></body></html>';
+  fwrite($handle, $writeString);
+  $fclose($handle);
+}
+  
 
 // This function deletes the event from the event table
 // Returns text on success error otherwise
@@ -566,6 +602,33 @@ function reportEvent() {
   catch (PDOException $e) {
     echo '{"error": "' . $e->getMessage() . '"}';
     $dbx = NULL;
+  }
+}
+// This is used for Facebook Integration.
+// Will display a webpage based on what event is queried
+// Never called by phone is called by posts to persons wall
+function displayEvent($id) {
+
+  if (isNullOrEmptyString($id)) {
+    echo 'Invalid Arguments';
+    die;
+  }
+
+  try {
+    $dbx = getConnection();
+
+    $query = 'SELECT * FROM ' . $GLOBALS['event_t'] . ' WHERE id=:id';
+    $state = $dbx->prepare($query);
+    $state->bindParam("id", $id);
+    $state->execute();
+    
+    $result = $state->fetch(PDO::FETCH_ASSOC);
+    $dbx = NULL;
+    display($result);
+    }
+  catch (PDOException $e) {
+    $dbx = NULL;
+    display("error");
   }
 }
 
