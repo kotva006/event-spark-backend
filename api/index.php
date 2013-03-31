@@ -249,7 +249,7 @@ function addWebPage($id, $title) {
     die;
   }
 
-  $fileLocation = "./facebook/" . $id . '.html';
+  $fileLocation = "../facebook/" . $id . '.html';
   $handle = fopen($fileLocation, 'w'); 
   if ($handle) {
     echo '{"error":"Failed to open webpage"}';
