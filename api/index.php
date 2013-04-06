@@ -43,6 +43,9 @@ function getEvent($id) {
                   . "e.start_date, "
                   . "e.end_date, "
                   . "e.type, "
+                  . "e.user_type, "
+                  . "e.user_name, "
+                  . "e.user_picture, "
                   . "(SELECT COUNT(*) from attending a WHERE a.id=:id) AS attending "
            . "FROM " . $GLOBALS["event_t"] . " AS e WHERE e.id=:id";
 
@@ -110,6 +113,9 @@ function getEventsByLocation() {
                   . "e.start_date, "
                   . "e.end_date, "
                   . "e.type, "
+                  . "e.user_type, "
+                  . "e.user_name, "
+                  . "e.user_picture, "
                   . "(SELECT COUNT(*) FROM attending a WHERE a.id=e.id) AS attending "
            . "FROM " . $GLOBALS["event_t"] . " AS e "
            . "WHERE longitude BETWEEN :lonsmall AND :lonbig "
@@ -170,6 +176,7 @@ function createEvent() {
   $start = $request->post('start_date');
   $end = $request->post('end_date');
   $user_id = substr($request->post('user_id'), 0, 22);
+  $user_type = $request->post('user_type');
 
   // Determine the request IP for use in spam prevention (TODO: Implement protection)
   $ip = $request->getIp();
@@ -190,6 +197,18 @@ function createEvent() {
   if (isNullOrEmptyString($user_id)) {
     echo '{"error": "A user_id must be provided to give event ownership."}'; die;
   }
+  if (isNullOrEmptyString($user_type)) {
+    $user_type = 0;
+  }
+
+  $user_name = "";
+  $user_picture = "";
+  if ($user_type == 1) {
+    // Verify Google+ Authentication.
+  }
+  else if ($user_type == 2) {
+    // Verify Facebook Authentication.
+  }
 
   try {
     $dbx = getConnection();
@@ -199,9 +218,11 @@ function createEvent() {
 
     // Add the event information into the SQL Database
     $query = "INSERT INTO " . $GLOBALS["event_t"] . " (title, description, longitude, "
-           . "latitude, start_date, end_date, type, ip, secret_id, user_id) "
+           . "latitude, start_date, end_date, type, ip, secret_id, user_id, user_type, "
+           . "user_name, user_picture) "
            . "VALUES (:title, :description, :longitude, :latitude, :start_date, "
-           . ":end_date, :type, INET_ATON(:ip), :secret_id, :user_id)";
+           . ":end_date, :type, INET_ATON(:ip), :secret_id, :user_id, :user_type, "
+           . ":user_name, :user_picture)";
 
     $state = $dbx->prepare($query);
     $state->bindParam("title", $title);
@@ -214,6 +235,9 @@ function createEvent() {
     $state->bindParam("ip", $ip);
     $state->bindParam("secret_id", $secret_id);
     $state->bindParam("user_id", $user_id);
+    $state->bindParam("user_type", $user_type);
+    $state->bindParam("user_name", $user_name);
+    $state->bindParam("user_picture", $user_picture);
     $state->execute();
     $id = $dbx->lastInsertId();
     //echo getEvent($id);
@@ -227,6 +251,9 @@ function createEvent() {
                   .  '"start_date":"'  . $start       . '",'
                   .  '"end_date":"'    . $end         . '",'
                   .  '"type":"'        . $type        . '",'
+                  .  '"user_type":"'   . $user_type   . '",'
+                  .  '"user_name":"'   . $user_name   . '",'
+                  .  '"user_picture":"'. $user_picture. '",'
                   .  '"attending":"0"}}';
     $dbx = NULL;
     addWebPage($id, $title);
@@ -250,7 +277,7 @@ function addWebPage($id, $title) {
   }
 
   $fileLocation = "../facebook/" . $id . '.html';
-  $handle = fopen($fileLocation, 'w'); 
+  $handle = fopen($fileLocation, 'w');
   if ($handle) {
     echo '{"error":"Failed to open webpage"}';
     die;
@@ -269,7 +296,7 @@ function addWebPage($id, $title) {
   fwrite($handle, $writeString);
   $fclose($handle);
 }
-  
+
 
 // This function deletes the event from the event table
 // Returns text on success error otherwise
