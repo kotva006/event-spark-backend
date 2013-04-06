@@ -177,6 +177,7 @@ function createEvent() {
   $end = $request->post('end_date');
   $user_id = substr($request->post('user_id'), 0, 22);
   $user_type = $request->post('user_type');
+  $user_token = $request->post('user_token');
 
   // Determine the request IP for use in spam prevention (TODO: Implement protection)
   $ip = $request->getIp();
@@ -206,8 +207,24 @@ function createEvent() {
   if ($user_type == 1) {
     // Verify Google+ Authentication.
   }
-  else if ($user_type == 2) {
+  else if ($user_type == 2 && !(isNullOrEmptyString($user_token))) {
     // Verify Facebook Authentication.
+    $url = "https://graph.facebook.com/me/?feilds=name,picture&access_token=" . $user_token;
+
+    $userRequest = new HttpRequest($url, HttpRequest::METH_GET);
+
+    try {
+      $userRequest->send();
+      $body = json_decode($userRequest->getBody());
+      if (isset($body["name"]) && isset($body["picture"])) {
+        $user_name = $body["name"];
+        $user_picture = $body["picture"]["data"]["url"];
+
+      } catch (HttpException $ex) {
+        echo '{"error":"' . $ex . '"}';
+        die;
+      }
+    }
   }
 
   try {
