@@ -18,14 +18,19 @@ $app->get('/events/:id', function($id) {
   // method and as a public api url.
   echo getEvent($id);
 });
-$app->get('/events/search/', 'getEventsByLocation');
 $app->post('/events', 'createEvent');
 $app->delete('/events/:id', 'deleteEvent');
 $app->put('/events/:id', 'updateEvent');
-$app->post('/events/attend/', 'attendEvent');
-$app->get('/events/getAttend/', 'getAttending');
-$app->post('/events/report/', 'reportEvent');
-$app->get('/displayEvent/:id', 'displayEvent');
+
+$app->get('/events/attend/:id', 'getAttending');
+$app->post('/events/attend/:id', 'attendEvent');
+$app->delete('/events/attend/:id', 'unattendEvent');
+
+$app->get('/events/display/:id', 'displayEvent');
+
+$app->post('/events/report/:id', 'reportEvent');
+
+$app->get('/events/search/', 'getEventsByLocation');
 
 $app->run();
 
@@ -219,11 +224,10 @@ function createEvent() {
       if (isset($body["name"]) && isset($body["picture"])) {
         $user_name = $body["name"];
         $user_picture = $body["picture"]["data"]["url"];
-
-      } catch (HttpException $ex) {
-        echo '{"error":"' . $ex . '"}';
-        die;
       }
+    } catch (HttpException $ex) {
+      echo '{"error":"' . $ex . '"}';
+      die;
     }
   }
 
@@ -474,9 +478,9 @@ function updateEvent($id) {
   }
 }
 
-function attendEvent() {
+function attendEvent($id) {
   $request = \Slim\Slim::getInstance()->request();
-  $id = $request->post('id');
+
   $user_id = substr($request->post('user_id'), 0, 22);
   $ip = $request->getIp();
 
@@ -543,9 +547,56 @@ function attendEvent() {
   }
 }
 
-function getAttending() {
+function unattendEvent($id) {
   $request = \Slim\Slim::getInstance()->request();
-  $id = $request->get('id');
+
+  $user_id = substr($request->params('user_id'), 0, 22);
+
+  if (isNullOrEmptyString($id)) {
+    echo '{"error": "An ID number is required"}'; die;
+  }
+  if (isNullOrEmptyString($user_id)) {
+    echo '{"error": "Internal user_id required."}'; die;
+  }
+
+  try {
+    $dbx = getConnection();
+
+    // See if the user has already attended.
+    $queryCheck = "SELECT COUNT(*) FROM " . $GLOBALS['attend_t'] . " "
+                . "WHERE id=:id AND user_id LIKE :user_id";
+    $state = $dbx->prepare($queryCheck);
+    $state->bindParam("id", $id);
+    $state->bindParam("user_id", $user_id);
+    $state->execute();
+    $userAttendCount = (int)$state->fetchColumn();
+
+    // The user has not attended this event previously, so the client should
+    // take measure to ensure that local caching of attendance is accurate.
+    if ($userAttendCount == 0) {
+      echo '{"result": "NO_ATTENDANCE_RECORD"}';
+      $dbx = NULL; die;
+    }
+
+    // Remove the user's attendance record.
+    $query = "DELETE FROM " . $GLOBALS['attend_t'] . " "
+           . "WHERE id=:id AND user_id LIKE :user_id";
+    $state = $dbx->prepare($query);
+    $state->bindParam("id", $id);
+    $state->bindParam("user_id", $user_id);
+    $state->execute();
+
+    echo '{"result": "OK"}';
+    $dbx = NULL;
+  }
+  catch (PDOException $e) {
+    echo '{"error": "' . $e->getMessage() . '"}';
+    $dbx = NULL;
+  }
+}
+
+function getAttending($id) {
+  $request = \Slim\Slim::getInstance()->request();
 
   if (isNullOrEmptyString($id)) {
     echo '{"error": "An ID number is required"}'; die;
@@ -575,9 +626,9 @@ function getAttending() {
 //   0. Inaccurate details
 //   1. Offensive details
 //   2. Promotes illegal activity
-function reportEvent() {
+function reportEvent($id) {
   $request = \Slim\Slim::getInstance()->request();
-  $id = $request->post('id');
+
   $user_id = substr($request->post('user_id'), 0, 22);
   $ip = $request->getIp();
   $reason = $request->post('reason');
@@ -665,7 +716,7 @@ function displayEvent($id) {
     $state = $dbx->prepare($query);
     $state->bindParam("id", $id);
     $state->execute();
-    
+
     $result = $state->fetch(PDO::FETCH_ASSOC);
     $dbx = NULL;
     display($result);
