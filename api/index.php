@@ -210,25 +210,40 @@ function createEvent() {
   $user_name = "";
   $user_picture = "";
   if ($user_type == 1) {
-    // Verify Google+ Authentication.
+    if (isNullOrEmptyString($user_token)) {
+      echo '{"error": "Google+ authentication requires a user_token parameter."}'; die;
+    }
+
+    // Validate Google+ Authentication
+    $curl = curl_init();
+    $url = 'https://www.googleapis.com/oauth2/v1/userinfo?access_token=' . $user_token;
+    curl_setopt_array($curl, array(
+        CURLOPT_RETURNTRANSFER => 1,
+        CURLOPT_URL => $url,
+    ));
+    $result = json_decode(curl_exec($curl));
+    curl_close($curl);
+    $user_name = $result->name;
+    $user_picture = $result->picture;
   }
   else if ($user_type == 2 && !(isNullOrEmptyString($user_token))) {
     // Verify Facebook Authentication.
-    $url = "https://graph.facebook.com/me/?feilds=name,picture&access_token=" . $user_token;
+    // TODO Replace with cURL as HttpRequest is not an available class.
+    //
+    // $url = "https://graph.facebook.com/me/?fields=name,picture&access_token=" . $user_token;
+    // $userRequest = new HttpRequest($url, HttpRequest::METH_GET);
 
-    $userRequest = new HttpRequest($url, HttpRequest::METH_GET);
-
-    try {
-      $userRequest->send();
-      $body = json_decode($userRequest->getBody());
-      if (isset($body["name"]) && isset($body["picture"])) {
-        $user_name = $body["name"];
-        $user_picture = $body["picture"]["data"]["url"];
-      }
-    } catch (HttpException $ex) {
-      echo '{"error":"' . $ex . '"}';
-      die;
-    }
+    // try {
+    //   $userRequest->send();
+    //   $body = json_decode($userRequest->getBody());
+    //   if (isset($body["name"]) && isset($body["picture"])) {
+    //     $user_name = $body["name"];
+    //     $user_picture = $body["picture"]["data"]["url"];
+    //   }
+    // } catch (HttpException $ex) {
+    //   echo '{"error": "' . $ex . '"}';
+    //   die;
+    // }
   }
 
   try {
@@ -300,7 +315,7 @@ function addWebPage($id, $title) {
   $fileLocation = "../facebook/" . $id . '.html';
   $handle = fopen($fileLocation, 'w');
   if ($handle) {
-    echo '{"error":"Failed to open webpage"}';
+    echo '{"error": "Failed to open webpage"}';
     die;
   }
   $wrtieString = '<html><head prefix="og: http://ogp.me/ns# fb: '
