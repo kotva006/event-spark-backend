@@ -226,24 +226,24 @@ function createEvent() {
     $user_name = $result->name;
     $user_picture = $result->picture;
   }
-  else if ($user_type == 2) {
-    if (isNullOrEmptyString($user_token)) {
-      echo '{"error": "Facebook authentication requires a user_token parameter."}'; die;
-    }
+  else if ($user_type == 2 && !(isNullOrEmptyString($user_token))) {
     // Verify Facebook Authentication.
     // TODO Replace with cURL as HttpRequest is not an available class.
+    //
+    // $url = "https://graph.facebook.com/me/?fields=name,picture&access_token=" . $user_token;
+    // $userRequest = new HttpRequest($url, HttpRequest::METH_GET);
 
-    $url = "https://graph.facebook.com/me/?fields=name,picture&access_token=" . $user_token;
-    $curl = curl_init();
-    curl_setopt_array($curl, array(
-         CURLOPT_RETURNTRANSFER => 1,
-         CURLOPT_URL => $url,
-      ));
-    $result = json_decode(curl_exec($curl));
-    if (isset($body["name"]) && isset($body["picture"])) {
-        $user_name = $body["name"];
-        $user_picture = $body["picture"]["data"]["url"];
-    }
+    // try {
+    //   $userRequest->send();
+    //   $body = json_decode($userRequest->getBody());
+    //   if (isset($body["name"]) && isset($body["picture"])) {
+    //     $user_name = $body["name"];
+    //     $user_picture = $body["picture"]["data"]["url"];
+    //   }
+    // } catch (HttpException $ex) {
+    //   echo '{"error": "' . $ex . '"}';
+    //   die;
+    // }
   }
 
   try {
@@ -318,17 +318,19 @@ function addWebPage($id, $title) {
     echo '{"error": "Failed to open webpage"}';
     die;
   }
-  $wrtieString = '<html><head prefix="og: http://ogp.me/ns# fb: '
+  $wrtieString = '<html><head><script type="text/javascript><!--'
+                 . 'window.location = "http://saypoint.dreamhosters.com/api/display/'.$id
+                 . '//--> </script><head prefix="og: http://ogp.me/ns# fb: '
                  . 'http://ogp.me/ns/fb# appchallenge_arrows: '
                  . 'http://ogp.me/ns/fb/appchallenge_arrows#"> '
                  . '<meta property="fb:app_id" content="631935130155263" /> '
                  . '<meta property="og:type"   content="appchallenge_arrows:event" /> '
-                 . '<meta property="og:url" content="http://saypoint.dreamhosters.com/api'
-                 . 'eventDisplay/' . $id . ' />'
+                 . '<meta property="og:url" content="http://saypoint.dreamhosters.com/'
+                 . 'facebook/' . $id . '.html />'
                  . '<meta property="og:title"  content="' . $title . '" /> '
                  . '<meta property="og:image"  content='
                  . '"http://saypoint.dreamhosters.com/facebook/arrowsLogo.png" />'
-                 . '<body></body></html>';
+                 . '</head><body></body></html>';
   fwrite($handle, $writeString);
   $fclose($handle);
 }
@@ -731,14 +733,23 @@ function displayEvent($id) {
     $state = $dbx->prepare($query);
     $state->bindParam("id", $id);
     $state->execute();
-
+    $rowCount = $state->rowCount();
+    if ($rowCount > 1) {
+      echo '{"error":"Internal Server Error"}';
+      die;
+    }
+    if ($rowCount < 1) {
+      display("no_event");
+      die;
+    }
     $result = $state->fetch(PDO::FETCH_ASSOC);
     $dbx = NULL;
-    display($result);
+    display(json_encode($result));
     }
   catch (PDOException $e) {
     $dbx = NULL;
-    display("error");
+    echo '{"error":"Internal server error"}';
+    die;
   }
 }
 
