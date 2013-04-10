@@ -218,13 +218,17 @@ function createEvent() {
     $curl = curl_init();
     $url = 'https://www.googleapis.com/oauth2/v1/userinfo?access_token=' . $user_token;
     curl_setopt_array($curl, array(
-        CURLOPT_RETURNTRANSFER => 1,
-        CURLOPT_URL => $url,
+      CURLOPT_RETURNTRANSFER => 1,
+      CURLOPT_URL => $url,
     ));
     $result = json_decode(curl_exec($curl));
     curl_close($curl);
-    $user_name = $result->name;
-    $user_picture = $result->picture;
+
+    // Parse the name and picture of the user from the JSON.
+    if (isset($result->name))
+      $user_name = $result->name;
+    if (isset($result->picture))
+      $user_picture = $result->picture;
   }
   else if ($user_type == 2 && !(isNullOrEmptyString($user_token))) {
     // Verify Facebook Authentication.
