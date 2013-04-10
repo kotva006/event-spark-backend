@@ -319,7 +319,7 @@ function addWebPage($id, $title) {
     die;
   }
   $wrtieString = '<html><head><script type="text/javascript><!--'
-                 . 'window.location = "http://saypoint.dreamhosters.com/api/display/'.$id
+                 . 'window.location = "http://saypoint.dreamhosters.com/api/events/display/'.$id
                  . '//--> </script><head prefix="og: http://ogp.me/ns# fb: '
                  . 'http://ogp.me/ns/fb# appchallenge_arrows: '
                  . 'http://ogp.me/ns/fb/appchallenge_arrows#"> '
