@@ -318,7 +318,7 @@ function addWebPage($id, $title) {
     echo '{"error": "Failed to open webpage"}';
     die;
   }
-  $wrtieString = '<html><head><script type="text/javascript><!--'
+  $writeString = '<html><head><script type="text/javascript><!--'
                  . 'window.location = "http://saypoint.dreamhosters.com/api/events/display/'.$id
                  . '//--> </script><head prefix="og: http://ogp.me/ns# fb: '
                  . 'http://ogp.me/ns/fb# appchallenge_arrows: '
@@ -332,7 +332,7 @@ function addWebPage($id, $title) {
                  . '"http://saypoint.dreamhosters.com/facebook/arrowsLogo.png" />'
                  . '</head><body></body></html>';
   fwrite($handle, $writeString);
-  $fclose($handle);
+  fclose($handle);
 }
 
 
