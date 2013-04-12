@@ -239,9 +239,9 @@ function createEvent() {
         CURLOPT_URL => $url,
     ));
     $result = json_decode(curl_exec($curl));
-    if (isset($body["name"]) && isset($body["picture"])) {
-        $user_name = $body["name"];
-        $user_picture = $body["picture"]["data"]["url"];
+    if (isset($body->name) && isset($body->picture)) {
+        $user_name = $body->name;
+        $user_picture = $body->picture->data->url;
     }
   }
 
