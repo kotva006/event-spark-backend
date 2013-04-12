@@ -232,22 +232,17 @@ function createEvent() {
   }
   else if ($user_type == 2 && !(isNullOrEmptyString($user_token))) {
     // Verify Facebook Authentication.
-    // TODO Replace with cURL as HttpRequest is not an available class.
-    //
-    // $url = "https://graph.facebook.com/me/?fields=name,picture&access_token=" . $user_token;
-    // $userRequest = new HttpRequest($url, HttpRequest::METH_GET);
-
-    // try {
-    //   $userRequest->send();
-    //   $body = json_decode($userRequest->getBody());
-    //   if (isset($body["name"]) && isset($body["picture"])) {
-    //     $user_name = $body["name"];
-    //     $user_picture = $body["picture"]["data"]["url"];
-    //   }
-    // } catch (HttpException $ex) {
-    //   echo '{"error": "' . $ex . '"}';
-    //   die;
-    // }
+    $url = "https://graph.facebook.com/me/?fields=name,picture&access_token=" . $user_token;
+    $curl = curl_init();
+    curl_setopt_array($curl, array(
+        CURLOPT_RETURNTRANSFER => 1,
+        CURLOPT_URL => $url,
+    ));
+    $result = json_decode(curl_exec($curl));
+    if (isset($body["name"]) && isset($body["picture"])) {
+        $user_name = $body["name"];
+        $user_picture = $body["picture"]["data"]["url"];
+    }
   }
 
   try {
