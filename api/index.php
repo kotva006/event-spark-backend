@@ -317,15 +317,15 @@ function addWebPage($id, $title) {
     echo '{"error": "Failed to open webpage"}';
     die;
   }
-  $writeString = '<html><head><script type="text/javascript><!--'
+  $writeString = '<html><head><script type="text/javascript">'
                  . 'window.location = "http://saypoint.dreamhosters.com/api/events/display/'.$id
-                 . '//--> </script><head prefix="og: http://ogp.me/ns# fb: '
+                 . '" // </script><head prefix="og: http://ogp.me/ns# fb: '
                  . 'http://ogp.me/ns/fb# appchallenge_arrows: '
                  . 'http://ogp.me/ns/fb/appchallenge_arrows#"> '
                  . '<meta property="fb:app_id" content="631935130155263" /> '
                  . '<meta property="og:type"   content="appchallenge_arrows:event" /> '
                  . '<meta property="og:url" content="http://saypoint.dreamhosters.com/'
-                 . 'facebook/' . $id . '.html />'
+                 . 'facebook/' . $id . '.html" />'
                  . '<meta property="og:title"  content="' . $title . '" /> '
                  . '<meta property="og:image"  content='
                  . '"http://saypoint.dreamhosters.com/facebook/arrowsLogo.png" />'
