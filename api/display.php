@@ -28,10 +28,10 @@ if ($object == "no_event") {
 $array = json_decode($object);
 $title = '<h1>' . $array->{'title'} . '</h1>';
 $map = '<div id="map">'
-	  .'<a href="https://maps.google.com/?ll=44.980801,-93.268749&marker=44.980801,-93.268749" target="_blank">'
-	  .'<img src="http://maps.googleapis.com/maps/api/staticmap?center=44.980801,-93.268749&size=300x200'
+	  .'<a href="https://maps.google.com/?ll='.$array->{'latitude'}.','.$array->{'longitude'}.'&marker='.$array->{'latitude'}.','.$array->{'longitude'}.'" target="_blank">'
+	  .'<img src="http://maps.googleapis.com/maps/api/staticmap?center='.$array->{'latitude'}.','.$array->{'longitude'}.'&size=300x200'
 	  .'&zoom=17&sensor=true&markers=icon:http://saypoint.dreamhosters.com/Markers/'
-	  .$typeArray[$array->{'type'}] . '.png%7Cshadow:true%7C44.980801,-93.268749"></a></div>';
+	  .$typeArray[$array->{'type'}] . '.png%7Cshadow:true%7C'.$array->{'latitude'}.','.$array->{'longitude'}.'"></a></div>';
 
 $type = '<p>Type: '.$typeArray[$array->{'type'}].'</p>';
 $start = '<p>Start Time: '.date('g\:i A F j\, Y', $array->{'start_date'}).'</p>';
