@@ -1,0 +1,28 @@
+
+
+html, body {height:100%; 
+            margin:0; 
+			padding:0;}
+			
+html {overflow-y:hidden;}
+
+body {overflow-y:auto;
+      background-color:#333333;}
+
+#header{margin-right:auto; 
+        margin-left:auto; 
+		padding-top:25px; 
+		width:50%; 
+		display:block;}
+
+#text { font-family:Arial, Helvetica, sans-serif;
+        color:#ffffff; 
+		background-color:#84B240; 
+		height:auto; width:50%; 
+		margin-left:auto; 
+		margin-right:auto; 
+		margin-top:25px; 
+		padding:25px;
+		padding-bottom:75px;}
+		
+#map {float:right;}
