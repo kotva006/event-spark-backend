@@ -328,7 +328,7 @@ function addWebPage($id, $title) {
                  . 'facebook/' . $id . '.html" />'
                  . '<meta property="og:title"  content="' . $title . '" /> '
                  . '<meta property="og:image"  content='
-                 . '"http://saypoint.dreamhosters.com/facebook/arrowsLogo.png" />'
+                 . '"http://saypoint.dreamhosters.com/facebook/eventSparkLogo.png" />'
                  . '</head><body></body></html>';
   fwrite($handle, $writeString);
   fclose($handle);
