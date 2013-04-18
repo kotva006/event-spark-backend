@@ -2,7 +2,7 @@
 
 function display($object, $attending) {
 $header = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">'
-         .'<html><head><title>Event Spark: Placeing Events at your Finger Tips</title>'
+         .'<html><head><title>Event Spark: Placing events at your finger tips</title>'
          .'<link rel="stylesheet" type="text/css" href="http://saypoint.dreamhosters.com/api/display.css"></head>';
 		 
 $bodyStart = '<body><a href="http://saypoint.dreamhosters.com"><img id="header"'
