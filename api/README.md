@@ -1,6 +1,6 @@
-App Challenge Backend
+Event Spark API
 =====================
-Communication from the Android application will request events from this REST API.
+Communication from the Android application requests events from this REST API.
 
 Updating the Slim Framework
 ---------------------------
