@@ -11,6 +11,18 @@ require 'Slim/Slim.php';
 require 'display.php';
 \Slim\Slim::registerAutoloader();
 
+// API URL configuration
+$GLOBALS["domain"] = "saypoint.dreamhosters.com";
+$GLOBALS["secure"] = false;
+$GLOBALS["api_dir"] = "api";
+function getBaseURL() {
+  return ($GLOBALS["secure"] ? "https://" : "http://") . $GLOBALS["domain"];
+}
+function getAPIURL() {
+  return getBaseURL() . "/" . $GLOBALS["api_dir"];
+}
+
+// Create an instance of the Slim framework.
 $app = new \Slim\Slim();
 
 $app->get('/events/:id', function($id) {
@@ -145,7 +157,6 @@ function getEventsByLocation() {
     die;
   }
 }
-
 
 // Adds an event to the database.
 //
@@ -299,15 +310,15 @@ function createEvent() {
     die;
   }
 }
+
 // Every Post in facebook is treated as an object.
 // Facebook references static webpages when it links our objects and posts
 // Every time we create an event a static webpage will be created for it in
 // the Facebook directory
 //This is an internal function only called by the createEvent function
 function addWebPage($id, $title) {
-
   if (isNullOrEmptyString($id) || isNullOrEmptyString($title)) {
-    echo '{"error":"invalid arguments to server processing"}';
+    echo '{"error": "Invalid arguments to addWebPage."}';
     die;
   }
 
@@ -318,26 +329,24 @@ function addWebPage($id, $title) {
     die;
   }
   $writeString = '<html><head><script type="text/javascript">'
-                 . 'window.location = "http://saypoint.dreamhosters.com/api/events/display/'.$id
-                 . '" // </script><head prefix="og: http://ogp.me/ns# fb: '
-                 . 'http://ogp.me/ns/fb# appchallenge_arrows: '
-                 . 'http://ogp.me/ns/fb/appchallenge_arrows#"> '
-                 . '<meta property="fb:app_id" content="631935130155263" /> '
-                 . '<meta property="og:type"   content="appchallenge_arrows:event" /> '
-                 . '<meta property="og:url" content="http://saypoint.dreamhosters.com/'
-                 . 'facebook/' . $id . '.html" />'
-                 . '<meta property="og:title"  content="' . $title . '" /> '
-                 . '<meta property="og:image"  content='
-                 . '"http://saypoint.dreamhosters.com/facebook/eventSparkLogo.png" />'
-                 . '</head><body></body></html>';
+               . 'window.location = ' . getAPIURL() . '/events/display/' . $id
+               . '" // </script><head prefix="og: http://ogp.me/ns# fb: '
+               . 'http://ogp.me/ns/fb# appchallenge_arrows: '
+               . 'http://ogp.me/ns/fb/appchallenge_arrows#"> '
+               . '<meta property="fb:app_id" content="631935130155263" /> '
+               . '<meta property="og:type"   content="appchallenge_arrows:event" /> '
+               . '<meta property="og:url" content="'
+               . getBaseURL() . '/facebook/' . $id . '.html" />'
+               . '<meta property="og:title"  content="' . $title . '" /> '
+               . '<meta property="og:image"  content="'
+               . getBaseURL() . '/facebook/eventSparkLogo.png" />'
+               . '</head><body></body></html>';
   fwrite($handle, $writeString);
   fclose($handle);
 }
 
-
-// This function deletes the event from the event table
-// Returns text on success error otherwise
-// Lets the cron job clean up the other tables
+// This function deletes an event from the event database table.
+// Returns "OK" result on success, an error otherwise.
 function deleteEvent($id) {
   $request = \Slim\Slim::getInstance()->request();
 
@@ -384,8 +393,8 @@ function deleteEvent($id) {
   }
 }
 
-// Takes in an event id and new info and will update the event
-// Returns the new event on success
+// Updates a given event with new information.
+// Returns the new event on success.
 function updateEvent($id) {
   $request = \Slim\Slim::getInstance()->request();
 
@@ -494,6 +503,7 @@ function updateEvent($id) {
   }
 }
 
+// Increments the attendance record of an event.
 function attendEvent($id) {
   $request = \Slim\Slim::getInstance()->request();
 
@@ -563,6 +573,7 @@ function attendEvent($id) {
   }
 }
 
+// Remove a user's attendance record.
 function unattendEvent($id) {
   $request = \Slim\Slim::getInstance()->request();
 
@@ -611,6 +622,7 @@ function unattendEvent($id) {
   }
 }
 
+// Retrieve attendance information for a given event.
 function getAttending($id) {
   $request = \Slim\Slim::getInstance()->request();
 
@@ -715,14 +727,13 @@ function reportEvent($id) {
     $dbx = NULL;
   }
 }
+
 // This is used for Facebook Integration.
 // Will display a webpage based on what event is queried
 // Never called by phone is called by posts to persons wall
 function displayEvent($id) {
-
   if (isNullOrEmptyString($id)) {
-    echo 'Invalid Arguments';
-    die;
+    echo 'Invalid Arguments'; die;
   }
 
   try {
@@ -734,17 +745,15 @@ function displayEvent($id) {
     $state->execute();
     $rowCount = $state->rowCount();
     if ($rowCount > 1) {
-      echo '{"error":"Internal Server Error"}';
-      die;
+      echo '{"error": "Internal Server Error"}'; die;
     }
     if ($rowCount < 1) {
-      display("no_event");
-      die;
+      display("no_event"); die;
     }
     $result = $state->fetch(PDO::FETCH_ASSOC);
     $dbx = NULL;
     display(json_encode($result));
-    }
+  }
   catch (PDOException $e) {
     $dbx = NULL;
     echo '{"error":"Internal server error"}';
@@ -752,9 +761,7 @@ function displayEvent($id) {
   }
 }
 
-
 // Helper method for database connections.
-// Also include variable $table in settings.php
 function getConnection() {
   // The database credentials are kept out of revision control.
   include("$_SERVER[DOCUMENT_ROOT]/../settings.php");
