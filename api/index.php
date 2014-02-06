@@ -12,7 +12,7 @@ require 'display.php';
 \Slim\Slim::registerAutoloader();
 
 // API URL configuration
-$GLOBALS["domain"] = "saypoint.dreamhosters.com";
+$GLOBALS["domain"] = "eventspark.atspace.cc";
 $GLOBALS["secure"] = false;
 $GLOBALS["api_dir"] = "api";
 function getBaseURL() {
@@ -764,7 +764,7 @@ function displayEvent($id) {
 // Helper method for database connections.
 function getConnection() {
   // The database credentials are kept out of revision control.
-  include("$_SERVER[DOCUMENT_ROOT]/../settings.php");
+  include("settings-atspace-39fh39h2gf0.php");
 
   // Keep the table and salt variables available globally.
   $GLOBALS["event_t"] = $event_t;
