@@ -240,6 +240,10 @@ function createEvent() {
       $user_name = $result->name;
     if (isset($result->picture))
       $user_picture = $result->picture;
+
+    // Revert to anonymous if we couldn't get a name.
+    if (isNullOrEmptyString($user_name))
+      $user_type = 0;
   }
   else if ($user_type == 2 && !(isNullOrEmptyString($user_token))) {
     // Verify Facebook Authentication.
@@ -254,6 +258,10 @@ function createEvent() {
         $user_name = $body->name;
         $user_picture = $body->picture->data->url;
     }
+
+    // Revert to anonymous if we couldn't get a name.
+    if (isNullOrEmptyString($user_name))
+      $user_type = 0;
   }
 
   try {
